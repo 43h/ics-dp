@@ -492,6 +492,11 @@ body {
     color: white;
 }
 
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
 .btn-warning {
     background: #ffc107;
     color: #212529;

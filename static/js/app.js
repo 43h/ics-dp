@@ -760,7 +760,7 @@ class ICPlatform {
         const container = document.getElementById('devices-table-body');
         
         if (this.devices.length === 0) {
-            container.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #7f8c8d; padding: 2rem;">暂无设备配置</td></tr>';
+            container.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #7f8c8d; padding: 2rem;">暂无设备配置</td></tr>';
             return;
         }
 
@@ -790,6 +790,11 @@ class ICPlatform {
                     </button>
                 </td>
                 <td>
+                    <button class="btn btn-info" onclick="app.jumpToLogin(${device.id})" title="跳转到原始登录页面">
+                        <i class="fas fa-external-link-alt"></i> 跳转登录
+                    </button>
+                </td>
+                <td>
                     <div class="device-actions">
                         ${device.needLogin ? 
                             `<button class="btn btn-success" onclick="app.quickLogin(${device.id})">
@@ -806,7 +811,7 @@ class ICPlatform {
                 </td>
             </tr>
             <tr class="device-details-row" id="details-${device.id}">
-                <td colspan="6">
+                <td colspan="7">
                     <div class="device-details-content">
                         <h4><i class="fas fa-list"></i> 设备组件信息</h4>
                         <div id="details-content-${device.id}">
@@ -948,6 +953,31 @@ class ICPlatform {
         this.currentConfig = config;
         await this.login();
         await this.loadDevices();
+    }
+
+    jumpToLogin(configId) {
+        const config = this.configs.find(c => c.id === configId);
+        if (!config) {
+            this.showNotification('设备配置不存在', 'error');
+            return;
+        }
+
+        if (!config.login_url) {
+            this.showNotification('该设备未配置登录地址', 'warning');
+            return;
+        }
+
+        // 确保URL有协议
+        let loginUrl = config.login_url.trim();
+        if (!loginUrl.startsWith('http://') && !loginUrl.startsWith('https://')) {
+            loginUrl = 'http://' + loginUrl;
+        }
+
+        // 在新标签页打开登录页面
+        window.open(loginUrl, '_blank');
+        
+        this.showNotification(`已在新标签页打开 ${config.name} 的登录页面`, 'info');
+        this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
     }
 
     selectDeviceConfig(configId) {
