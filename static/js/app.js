@@ -798,7 +798,7 @@ class ICPlatform {
                     <div class="device-actions">
                         ${device.needLogin ? 
                             `<button class="btn btn-success" onclick="app.quickLogin(${device.id})">
-                                <i class="fas fa-sign-in-alt"></i> 登录
+                                <i class="fas fa-sign-in-alt"></i> 连接
                             </button>` : ''}
                         <button class="btn btn-outline" onclick="app.selectDeviceConfig(${device.id})">
                             <i class="fas fa-eye"></i> 查看详情
@@ -972,7 +972,13 @@ class ICPlatform {
         if (!loginUrl.startsWith('http://') && !loginUrl.startsWith('https://')) {
             loginUrl = 'http://' + loginUrl;
         }
-
+		// 只保留协议和主域名，不带任何路径
+		try {
+			const urlObj = new URL(loginUrl);
+			loginUrl = `${urlObj.protocol}//${urlObj.host}`;
+		} catch (e) {
+			// 如果URL解析失败，忽略处理
+		}
         // 在新标签页打开登录页面
         window.open(loginUrl, '_blank');
         
