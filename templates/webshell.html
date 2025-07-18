@@ -779,45 +779,52 @@
             
             // 处理服务器返回的数据
             if (data.trim()) {
-                // 检查是否是提示符（通常以 $ 或 # 结尾，且没有换行）
-                const trimmedData = data.trim();
-                if ((trimmedData.endsWith('$') || trimmedData.endsWith('#')) && !data.includes('\n')) {
-                    // 是提示符，创建新的提示符容器
-                    const promptElement = document.createElement('span');
-                    promptElement.className = 'terminal-prompt';
-                    promptElement.textContent = trimmedData + ' ';
-                    
-                    // 创建当前行元素包含提示符
-                    const currentLineElement = document.createElement('div');
-                    currentLineElement.className = 'terminal-line current-line-container';
-                    currentLineElement.appendChild(promptElement);
-                    
-                    // 创建输入区域
-                    const inputElement = document.createElement('span');
-                    inputElement.className = 'current-line terminal-output';
-                    currentLineElement.appendChild(inputElement);
-                    
-                    terminal.appendChild(currentLineElement);
-                    
-                    // 重置当前行状态
-                    currentLine = '';
-                    cursorCol = 0;
-                } else {
-                    // 普通输出，按行分割处理
-                    const lines = data.split('\n');
-                    lines.forEach((line, index) => {
-                        if (line.trim() || index === 0) {  // 保留第一行即使为空
+                // 按行分割处理数据
+                const lines = data.split('\n');
+                let hasPromptLine = false;
+                
+                lines.forEach((line, index) => {
+                    if (line.trim() || index === 0) {  // 保留第一行即使为空
+                        const trimmedLine = line.trim();
+                        
+                        // 检查是否是提示符行（以 $ 或 # 结尾）
+                        if (trimmedLine.endsWith('$') || trimmedLine.endsWith('#')) {
+                            // 是提示符，创建提示符容器
+                            const promptElement = document.createElement('span');
+                            promptElement.className = 'terminal-prompt';
+                            promptElement.textContent = trimmedLine + ' ';
+                            
+                            // 创建当前行元素包含提示符
+                            const currentLineElement = document.createElement('div');
+                            currentLineElement.className = 'terminal-line current-line-container';
+                            currentLineElement.appendChild(promptElement);
+                            
+                            // 创建输入区域
+                            const inputElement = document.createElement('span');
+                            inputElement.className = 'current-line terminal-output';
+                            currentLineElement.appendChild(inputElement);
+                            
+                            terminal.appendChild(currentLineElement);
+                            
+                            // 重置当前行状态
+                            currentLine = '';
+                            cursorCol = 0;
+                            hasPromptLine = true;
+                        } else {
+                            // 普通输出行
                             const lineElement = document.createElement('div');
                             lineElement.className = 'terminal-line output';
                             lineElement.textContent = line;
                             terminal.appendChild(lineElement);
                         }
-                    });
+                    }
+                });
+                
+                // 只有在有提示符行时才显示光标
+                if (hasPromptLine) {
+                    updateCurrentLine();
                 }
             }
-            
-            // 显示光标
-            updateCurrentLine();
             
             // 记录到会话数据
             sessionData.push({
