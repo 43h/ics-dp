@@ -781,16 +781,6 @@ class ICPlatform {
                 <td>${device.itemCount}</td>
                 <td>${device.lastUpdate}</td>
                 <td>
-                    <button class="btn btn-outline webshell-btn" onclick="app.openWebShell(${device.id})" title="打开WebShell">
-                        <i class="fas fa-terminal"></i> WebShell
-                    </button>
-                </td>
-                <td>
-                    <button class="btn btn-info" onclick="app.jumpToLogin(${device.id})" title="跳转到原始登录页面">
-                        <i class="fas fa-external-link-alt"></i> 跳转登录
-                    </button>
-                </td>
-                <td>
                     <div class="device-actions">
                         ${device.needLogin ? 
                             `<button class="btn btn-success" onclick="app.quickLogin(${device.id})">
@@ -801,6 +791,16 @@ class ICPlatform {
                                 <i class="fas fa-sync-alt"></i> 刷新
                             </button>` : ''}
                     </div>
+                </td>
+                <td>
+                    <button class="btn btn-outline webshell-btn" onclick="app.openWebShell(${device.id})" title="打开WebShell">
+                        <i class="fas fa-terminal"></i> WebShell
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-info" onclick="app.jumpToLogin(${device.id})" title="跳转到原始登录页面">
+                        <i class="fas fa-external-link-alt"></i> 跳转登录
+                    </button>
                 </td>
             </tr>
             <tr class="device-details-row" id="details-${device.id}">
