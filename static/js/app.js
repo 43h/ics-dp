@@ -795,10 +795,7 @@ class ICPlatform {
                         ${device.needLogin ? 
                             `<button class="btn btn-success" onclick="app.quickLogin(${device.id})">
                                 <i class="fas fa-sign-in-alt"></i> 连接
-                            </button>` : ''}
-                        <button class="btn btn-outline" onclick="app.selectDeviceConfig(${device.id})">
-                            <i class="fas fa-eye"></i> 查看详情
-                        </button>
+                            </button>` : ''}               
                         ${device.status === 'online' ? 
                             `<button class="btn btn-primary" onclick="app.refreshDevice(${device.id})">
                                 <i class="fas fa-sync-alt"></i> 刷新
