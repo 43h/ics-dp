@@ -154,9 +154,9 @@ class ICPlatform {
             if (this.configs.length === 0) {
                 this.addLogToInfoPanel('暂无配置，请点击"配置管理"添加配置', 'warning');
             } else {
-                this.addLogToInfoPanel(`已加载 ${this.configs.length} 个配置`, 'success');
-                // 自动登录所有配置
-                await this.autoLoginAllConfigs();
+                this.addLogToInfoPanel(`已加载 ${this.configs.length} 个配置，设备需要手动登录`, 'info');
+                // 移除自动登录，只加载设备信息
+                this.loadDevices();
             }
         } catch (error) {
             console.error('加载配置失败:', error);
