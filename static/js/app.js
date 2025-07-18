@@ -218,13 +218,9 @@ class ICPlatform {
         }
 
         container.innerHTML = this.configs.map(config => `
-            <div class="config-item ${this.currentConfig?.id === config.id ? 'active' : ''}" 
-                 data-config-id="${config.id}">
+            <div class="config-item" data-config-id="${config.id}">
                 <h4>${config.name}</h4>
-                <p>登录: ${config.login_url}</p>
-                <p>数据: ${config.data_url}</p>
                 <div class="config-actions">
-                    <button class="btn btn-outline" onclick="app.selectConfig(${config.id})">选择</button>
                     <button class="btn btn-outline" onclick="app.editConfig(${config.id})">编辑</button>
                     <button class="btn btn-danger" onclick="app.deleteConfig(${config.id})">删除</button>
                 </div>
@@ -632,8 +628,8 @@ class ICPlatform {
         const logElement = document.createElement('div');
         logElement.className = `info-log ${type}`;
         logElement.innerHTML = `
-            <div class="info-log-time">${new Date().toLocaleTimeString()}</div>
-            <div class="info-log-content">${message}</div>
+            <span class="info-log-time">${new Date().toLocaleTimeString()}</span>
+            <span class="info-log-content">${message}</span>
         `;
 
         infoPanel.appendChild(logElement);
