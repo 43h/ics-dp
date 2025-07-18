@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebShell - ICS Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0c0c0c;
+            color: #00ff00;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .webshell-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .webshell-header {
+            background: #1e1e1e;
+            border-bottom: 1px solid #333;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            min-height: 50px;
+        }
+
+        .webshell-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .webshell-toolbar {
+            background: #2d2d2d;
+            padding: 8px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            background: #404040;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #505050;
+        }
+
+        .webshell-terminal {
+            flex: 1;
+            padding: 15px;
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-y: auto;
+            background: #0c0c0c;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            outline: none;
+            cursor: text;
+        }
+
+        .webshell-terminal:focus {
+            outline: 2px solid #007acc;
+            outline-offset: -2px;
+        }
+
+        .terminal-output {
+            font-family: inherit;
+            white-space: pre-wrap;
+            position: relative;
+        }
+
+        .current-line {
+            display: inline;
+        }
+
+        .current-line-container {
+            display: flex;
+            align-items: baseline;
+        }
+
+        .terminal-prompt {
+            color: #00ff00;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* 光标样式 */
+        .terminal-cursor {
+            display: inline-block;
+            width: 1ch;
+            height: 1em;
+            background-color: #00ff00;
+            animation: blink 1s infinite;
+            position: relative;
+            vertical-align: baseline;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .webshell-terminal::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .webshell-terminal::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .webshell-terminal::-webkit-scrollbar-thumb {
+            background: #404040;
+            border-radius: 4px;
+        }
+
+        .webshell-terminal::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .terminal-line {
+            margin-bottom: 2px;
+        }
+
+        .prompt {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .command {
+            color: #ffffff;
+        }
+
+        .output {
+            color: #cccccc;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .warning {
+            color: #ffaa00;
+        }
+
+        .success {
+            color: #44ff44;
+        }
+
+        .webshell-input-container {
+            background: #1e1e1e;
+            border-top: 1px solid #333;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .current-prompt {
+            color: #00ff00;
+            font-weight: bold;
+            min-width: fit-content;
+        }
+
+        .webshell-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            padding: 5px 0;
+        }
+
+        .webshell-input::placeholder {
+            color: #666;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .send-btn {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .send-btn:hover {
+            background: #005a9e;
+        }
+
+        .send-btn:disabled {
+            background: #404040;
+            cursor: not-allowed;
+        }
+
+        .history-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .history-btn {
+            background: #404040;
+            color: #ccc;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .history-btn:hover {
+            background: #505050;
+        }
+
+        .connection-info {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ccc;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 11px;
+            border: 1px solid #333;
+            display: none;
+        }
+
+        .loading-indicator {
+            color: #ffaa00;
+            font-style: italic;
+        }
+
+        /* 窗口控制按钮 */
+        .window-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .window-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .window-btn.close {
+            background: #ff5f56;
+        }
+
+        .window-btn.minimize {
+            background: #ffbd2e;
+        }
+
+        .window-btn.maximize {
+            background: #27ca3f;
+        }
+
+        .window-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* 右键菜单 */
+        .context-menu {
+            position: fixed;
+            background: #2d2d2d;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 5px 0;
+            z-index: 1000;
+            display: none;
+            min-width: 120px;
+        }
+
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 12px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-menu-item:hover {
+            background: #404040;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #555;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="webshell-container">
+        <!-- 头部 -->
+        <div class="webshell-header">
+            <div class="webshell-title">
+                <i class="fas fa-terminal"></i>
+                <span id="session-title">WebShell - 连接中...</span>
+            </div>
+            <div class="connection-status">
+                <div class="status-indicator" id="status-indicator"></div>
+                <span id="connection-text">断开连接</span>
+                <div class="window-controls">
+                    <button class="window-btn minimize" onclick="window.minimize && window.minimize()"></button>
+                    <button class="window-btn maximize" onclick="toggleMaximize()"></button>
+                    <button class="window-btn close" onclick="closeWindow()"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="webshell-toolbar">
+            <button class="toolbar-btn" onclick="clearTerminal()" title="清屏">
+                <i class="fas fa-broom"></i> 清屏
+            </button>
+            <button class="toolbar-btn" onclick="reconnect()" title="重新连接">
+                <i class="fas fa-redo"></i> 重连
+            </button>
+            <button class="toolbar-btn" onclick="showConnectionInfo()" title="连接信息">
+                <i class="fas fa-info-circle"></i> 信息
+            </button>
+            <button class="toolbar-btn" onclick="exportSession()" title="导出会话">
+                <i class="fas fa-download"></i> 导出
+            </button>
+        </div>
+
+        <!-- 终端区域 -->
+        <div class="webshell-terminal" id="terminal" oncontextmenu="showContextMenu(event)">
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="webshell-input-container">
+            <span class="current-prompt" id="current-prompt">$</span>
+            <input type="text" class="webshell-input" id="command-input" 
+                   placeholder="输入命令..." autocomplete="off" 
+                   onkeydown="handleKeyDown(event)">
+            <div class="history-controls">
+                <button class="history-btn" onclick="navigateHistory(-1)" title="上一条命令">
+                    <i class="fas fa-chevron-up"></i>
+                </button>
+                <button class="history-btn" onclick="navigateHistory(1)" title="下一条命令">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <button class="send-btn" id="send-btn" onclick="sendCommand()">
+                <i class="fas fa-paper-plane"></i> 发送
+            </button>
+        </div>
+    </div>
+
+    <!-- 连接信息面板 -->
+    <div class="connection-info" id="connection-info">
+        <div id="connection-details"></div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div class="context-menu" id="context-menu">
+        <button class="context-menu-item" onclick="copySelection()">
+            <i class="fas fa-copy"></i> 复制
+        </button>
+        <button class="context-menu-item" onclick="pasteText()">
+            <i class="fas fa-paste"></i> 粘贴
+        </button>
+        <div class="context-menu-separator"></div>
+        <button class="context-menu-item" onclick="selectAll()">
+            <i class="fas fa-select-all"></i> 全选
+        </button>
+        <button class="context-menu-item" onclick="clearTerminal()">
+            <i class="fas fa-broom"></i> 清屏
+        </button>
+    </div>
+
+    <script>
+        // 全局变量
+        let deviceConfig = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+        let isConnected = false;
+        let currentPrompt = '$';
+        let sessionData = [];
+        let websocket = null;
+        let currentInput = '';
+        let cursorPosition = 0;
+        let currentLine = ''; // 当前行的内容
+        let cursorCol = 0;    // 光标列位置
+
+        // 从URL参数获取设备信息
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                deviceId: params.get('deviceId'),
+                deviceName: params.get('deviceName'),
+                host: params.get('host'),
+                user: params.get('user'),
+                pass: params.get('pass'),
+                port: params.get('port') || '22'
+            };
+        }
+
+        // 初始化
+        function init() {
+            const params = getUrlParams();
+            if (!params.deviceId) {
+                showError('缺少设备参数');
+                return;
+            }
+
+            deviceConfig = params;
+            document.getElementById('session-title').textContent = `WebShell - ${params.deviceName}`;
+            document.getElementById('current-prompt').textContent = `$`;
+            currentPrompt = `$`;
+
+            // 隐藏输入框，直接从终端接收输入
+            document.getElementById('command-input').style.display = 'none';
+            document.getElementById('send-btn').style.display = 'none';
+
+            // 聚焦到终端区域
+            document.getElementById('terminal').focus();
+            document.getElementById('terminal').setAttribute('tabindex', '0');
+
+            // 连接WebSocket
+            connectWebSocket();
+
+            // 设置窗口关闭事件
+            window.addEventListener('beforeunload', function(e) {
+                if (isConnected && websocket) {
+                    websocket.close();
+                }
+            });
+
+            // 隐藏右键菜单
+            document.addEventListener('click', function() {
+                document.getElementById('context-menu').style.display = 'none';
+            });
+
+            // 设置键盘事件监听
+            setupKeyboardEvents();
+        }
+
+        // 设置键盘事件
+        function setupKeyboardEvents() {
+            const terminal = document.getElementById('terminal');
+            
+            // 动态检测删除键类型
+            let backspaceChar = '\x08'; // 默认值
+            
+            terminal.addEventListener('keydown', function(event) {
+                if (!isConnected || !websocket) {
+                    event.preventDefault();
+                    return;
+                }
+
+                // 防止默认行为
+                event.preventDefault();
+
+                // 处理特殊键
+                let keyData = '';
+                
+                switch(event.key) {
+                    case 'Enter':
+                        // 发送当前行到服务器
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(currentLine + '\r');
+                        }
+                        handleLineFeed();
+                        keyData = ''; // 不发送额外的回车
+                        break;
+                    case 'Backspace':
+                        // 在本地处理退格键
+                        handleBackspace();
+                        keyData = ''; // 不发送到服务器
+                        break;
+                    case 'Tab':
+                        keyData = '\t';
+                        break;
+                    case 'ArrowUp':
+                        keyData = '\x1b[A'; // 发送上箭头键
+                        break;
+                    case 'ArrowDown':
+                        keyData = '\x1b[B'; // 发送下箭头键
+                        break;
+                    case 'ArrowRight':
+                        // 处理右箭头键移动
+                        if (cursorCol < currentLine.length) {
+                            cursorCol++;
+                            updateCurrentLine();
+                        }
+                        keyData = ''; // 不发送到服务器，只在本地处理
+                        break;
+                    case 'ArrowLeft':
+                        // 处理左箭头键移动
+                        if (cursorCol > 0) {
+                            cursorCol--;
+                            updateCurrentLine();
+                        }
+                        keyData = ''; // 不发送到服务器，只在本地处理
+                        break;
+                    case 'Home':
+                        keyData = '\x1b[H';
+                        break;
+                    case 'End':
+                        keyData = '\x1b[F';
+                        break;
+                    case 'Delete':
+                        // 在本地处理删除键
+                        handleDelete();
+                        keyData = ''; // 不发送到服务器
+                        break;
+                    case 'PageUp':
+                        keyData = '\x1b[5~';
+                        break;
+                    case 'PageDown':
+                        keyData = '\x1b[6~';
+                        break;
+                    default:
+                        if (event.ctrlKey) {
+                            // 处理Ctrl组合键
+                            switch(event.key.toLowerCase()) {
+                                case 'c':
+                                    keyData = '\x03'; // Ctrl+C
+                                    break;
+                                case 'd':
+                                    keyData = '\x04'; // Ctrl+D
+                                    break;
+                                case 'z':
+                                    keyData = '\x1a'; // Ctrl+Z
+                                    break;
+                                case 'l':
+                                    keyData = '\x0c'; // Ctrl+L
+                                    break;
+                                default:
+                                    if (event.key.length === 1) {
+                                        keyData = String.fromCharCode(event.key.charCodeAt(0) - 64);
+                                    }
+                            }
+                        } else if (event.altKey) {
+                            // 处理Alt组合键
+                            keyData = '\x1b' + event.key;
+                        } else if (event.key.length === 1) {
+                            // 普通字符 - 在本地处理
+                            handlePrintableChar(event.key);
+                            keyData = ''; // 不发送到服务器
+                        }
+                        break;
+                }
+
+                if (keyData && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(keyData);
+                }
+            });
+
+            // 防止输入法输入
+            terminal.addEventListener('input', function(event) {
+                event.preventDefault();
+            });
+
+            // 确保终端保持焦点
+            terminal.addEventListener('blur', function() {
+                setTimeout(() => terminal.focus(), 10);
+            });
+        }
+
+        // 连接WebSocket
+        function connectWebSocket() {
+            try {
+                updateConnectionStatus('连接中...', false);
+                
+                // 清空终端，不显示初始化消息
+                const terminal = document.getElementById('terminal');
+                terminal.innerHTML = '';
+
+                // 构建WebSocket URL
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/api/webshell/ws?device_id=${deviceConfig.deviceId}`;
+                
+                console.log('WebSocket URL:', wsUrl);
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = function() {
+                    isConnected = true;
+                    updateConnectionStatus('已连接', true);
+                    
+                    // 清空初始化消息
+                    const terminal = document.getElementById('terminal');
+                    terminal.innerHTML = '';
+                    
+                    // 初始化光标位置
+                    currentLine = '';
+                    cursorCol = 0;
+                    
+                    // 不立即更新当前行，等待服务器发送提示符
+                    
+                    // 聚焦到终端
+                    document.getElementById('terminal').focus();
+                };
+
+                websocket.onmessage = function(event) {
+                    // 过滤空消息和重复消息
+                    if (!event.data || event.data.trim() === '') {
+                        return;
+                    }
+                    
+                    // 直接显示SSH返回的数据
+                    addRawTerminalOutput(event.data);
+                };
+
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus('连接已断开', false);
+                    
+                    if (event.wasClean) {
+                        addTerminalLine('WebShell连接已正常关闭', 'success');
+                    } else {
+                        addTerminalLine('WebShell连接意外断开', 'error');
+                        setTimeout(() => {
+                            if (confirm('连接已断开，是否重新连接？')) {
+                                reconnect();
+                            }
+                        }, 1000);
+                    }
+                };
+
+                websocket.onerror = function(error) {
+                    isConnected = false;
+                    updateConnectionStatus('连接错误', false);
+                    addTerminalLine('WebSocket连接错误: ' + error.message, 'error');
+                };
+
+            } catch (error) {
+                isConnected = false;
+                updateConnectionStatus('连接失败', false);
+                addTerminalLine('建立WebSocket连接失败: ' + error.message, 'error');
+            }
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(text, connected) {
+            document.getElementById('connection-text').textContent = text;
+            const indicator = document.getElementById('status-indicator');
+            if (connected) {
+                indicator.classList.add('connected');
+            } else {
+                indicator.classList.remove('connected');
+            }
+        }
+
+        // 添加终端行
+        function addTerminalLine(text, className = 'output') {
+            const terminal = document.getElementById('terminal');
+            
+            // 移除之前的光标和当前行
+            const existingCursor = terminal.querySelector('.terminal-cursor');
+            if (existingCursor) {
+                existingCursor.remove();
+            }
+            
+            const existingCurrentLine = terminal.querySelector('.current-line');
+            if (existingCurrentLine) {
+                existingCurrentLine.remove();
+            }
+            
+            const line = document.createElement('div');
+            line.className = `terminal-line ${className}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            
+            // 重置当前行状态
+            currentLine = '';
+            cursorCol = 0;
+            
+            // 滚动到底部
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            // 记录到会话数据
+            sessionData.push({
+                timestamp: new Date().toISOString(),
+                type: className,
+                content: text
+            });
+        }
+
+        // 添加原始终端输出（主要处理服务器响应）
+        function addRawTerminalOutput(data) {
+            const terminal = document.getElementById('terminal');
+            
+            // 过滤重复或空数据
+            if (!data || data.trim() === '') {
+                return;
+            }
+            
+            // 移除之前的光标
+            const existingCursor = terminal.querySelector('.terminal-cursor');
+            if (existingCursor) {
+                existingCursor.remove();
+            }
+            
+            // 移除之前的独立当前行元素（不在容器中的）
+            const existingCurrentLine = terminal.querySelector('.current-line');
+            if (existingCurrentLine && !existingCurrentLine.closest('.current-line-container')) {
+                existingCurrentLine.remove();
+            }
+            
+            // 处理服务器返回的数据
+            if (data.trim()) {
+                // 检查是否是提示符（通常以 $ 或 # 结尾，且没有换行）
+                const trimmedData = data.trim();
+                if ((trimmedData.endsWith('$') || trimmedData.endsWith('#')) && !data.includes('\n')) {
+                    // 是提示符，创建新的提示符容器
+                    const promptElement = document.createElement('span');
+                    promptElement.className = 'terminal-prompt';
+                    promptElement.textContent = trimmedData + ' ';
+                    
+                    // 创建当前行元素包含提示符
+                    const currentLineElement = document.createElement('div');
+                    currentLineElement.className = 'terminal-line current-line-container';
+                    currentLineElement.appendChild(promptElement);
+                    
+                    // 创建输入区域
+                    const inputElement = document.createElement('span');
+                    inputElement.className = 'current-line terminal-output';
+                    currentLineElement.appendChild(inputElement);
+                    
+                    terminal.appendChild(currentLineElement);
+                    
+                    // 重置当前行状态
+                    currentLine = '';
+                    cursorCol = 0;
+                } else {
+                    // 普通输出，按行分割处理
+                    const lines = data.split('\n');
+                    lines.forEach((line, index) => {
+                        if (line.trim() || index === 0) {  // 保留第一行即使为空
+                            const lineElement = document.createElement('div');
+                            lineElement.className = 'terminal-line output';
+                            lineElement.textContent = line;
+                            terminal.appendChild(lineElement);
+                        }
+                    });
+                }
+            }
+            
+            // 显示光标
+            updateCurrentLine();
+            
+            // 记录到会话数据
+            sessionData.push({
+                timestamp: new Date().toISOString(),
+                type: 'output',
+                content: data
+            });
+        }
+
+        // 处理删除键
+        function handleDelete() {
+            if (cursorCol < currentLine.length) {
+                // 删除光标位置的字符
+                currentLine = currentLine.slice(0, cursorCol) + currentLine.slice(cursorCol + 1);
+                updateCurrentLine();
+            }
+        }
+
+        // 处理退格
+        function handleBackspace() {
+            if (cursorCol > 0) {
+                // 删除光标前的一个字符
+                currentLine = currentLine.slice(0, cursorCol - 1) + currentLine.slice(cursorCol);
+                cursorCol--;
+                updateCurrentLine();
+            }
+        }
+
+        // 处理回车
+        function handleCarriageReturn() {
+            cursorCol = 0;
+            updateCurrentLine();
+        }
+
+        // 处理换行
+        function handleLineFeed() {
+            const terminal = document.getElementById('terminal');
+            
+            // 查找当前的提示符容器
+            const promptContainer = terminal.querySelector('.current-line-container');
+            if (promptContainer) {
+                // 如果有提示符容器，将用户输入添加到提示符后面
+                const currentLineElement = promptContainer.querySelector('.current-line');
+                if (currentLineElement) {
+                    // 移除光标
+                    const cursor = currentLineElement.querySelector('.terminal-cursor');
+                    if (cursor) {
+                        cursor.remove();
+                    }
+                    // 添加用户输入的文本
+                    if (currentLine.trim()) {
+                        const userInput = document.createElement('span');
+                        userInput.textContent = currentLine;
+                        currentLineElement.appendChild(userInput);
+                    }
+                }
+                // 移除 current-line-container 类，使其成为历史记录
+                promptContainer.classList.remove('current-line-container');
+                // 移除 current-line 类，防止被重复使用
+                const oldCurrentLine = promptContainer.querySelector('.current-line');
+                if (oldCurrentLine) {
+                    oldCurrentLine.classList.remove('current-line');
+                }
+            } else {
+                // 如果没有提示符容器，创建普通行
+                if (currentLine.trim() !== '' || cursorCol > 0) {
+                    const lineElement = document.createElement('div');
+                    lineElement.className = 'terminal-line';
+                    lineElement.textContent = currentLine;
+                    terminal.appendChild(lineElement);
+                } else {
+                    // 空行也要创建元素
+                    const lineElement = document.createElement('div');
+                    lineElement.className = 'terminal-line';
+                    lineElement.innerHTML = '&nbsp;';
+                    terminal.appendChild(lineElement);
+                }
+            }
+            
+            // 重置当前行状态
+            currentLine = '';
+            cursorCol = 0;
+            
+            // 不要立即显示光标，等待服务器响应
+            // updateCurrentLine();
+        }
+
+        // 处理可打印字符
+        function handlePrintableChar(char) {
+            // 在当前位置插入字符
+            currentLine = currentLine.slice(0, cursorCol) + char + currentLine.slice(cursorCol);
+            cursorCol++;
+            updateCurrentLine();
+        }
+
+        // 处理Tab
+        function handleTab() {
+            const spaces = 4 - (cursorCol % 4);
+            for (let i = 0; i < spaces; i++) {
+                handlePrintableChar(' ');
+            }
+        }
+
+        // 更新当前行显示
+        function updateCurrentLine() {
+            const terminal = document.getElementById('terminal');
+            
+            // 移除之前的光标
+            const existingCursor = terminal.querySelector('.terminal-cursor');
+            if (existingCursor) {
+                existingCursor.remove();
+            }
+            
+            // 查找当前行元素
+            let currentLineElement = terminal.querySelector('.current-line');
+            
+            // 如果没有找到当前行元素，创建一个新的
+            if (!currentLineElement) {
+                // 检查是否有提示符容器
+                const promptContainer = terminal.querySelector('.current-line-container');
+                if (promptContainer) {
+                    // 在提示符容器中查找输入区域
+                    currentLineElement = promptContainer.querySelector('.current-line');
+                }
+                
+                if (!currentLineElement) {
+                    // 创建新的当前行元素
+                    currentLineElement = document.createElement('span');
+                    currentLineElement.className = 'current-line terminal-output';
+                    terminal.appendChild(currentLineElement);
+                }
+            }
+            
+            // 清空当前行元素
+            currentLineElement.innerHTML = '';
+            
+            // 添加光标前的文本
+            if (cursorCol > 0) {
+                const beforeCursor = document.createElement('span');
+                beforeCursor.textContent = currentLine.slice(0, cursorCol);
+                currentLineElement.appendChild(beforeCursor);
+            }
+            
+            // 添加光标
+            const cursor = document.createElement('span');
+            cursor.className = 'terminal-cursor';
+            cursor.innerHTML = '█';
+            currentLineElement.appendChild(cursor);
+            
+            // 添加光标后的文本
+            if (cursorCol < currentLine.length) {
+                const afterCursor = document.createElement('span');
+                afterCursor.textContent = currentLine.slice(cursorCol);
+                currentLineElement.appendChild(afterCursor);
+            }
+            
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // 发送命令（已弃用，现在直接通过键盘事件发送）
+        async function sendCommand() {
+            // 此函数现在不再使用，保留为了兼容性
+            console.log('sendCommand is deprecated, using direct keyboard input now');
+        }
+
+        // 断开WebShell连接
+        async function disconnectWebShell() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.close();
+            }
+            isConnected = false;
+            updateConnectionStatus('已断开连接', false);
+        }
+
+        // 键盘事件处理（已被新的键盘事件系统替代）
+        function handleKeyDown(event) {
+            // 此函数现在不再使用
+            return;
+        }
+
+        // 命令历史导航（已弃用）
+        function navigateHistory(direction) {
+            // 历史功能现在由shell本身处理
+            return;
+        }
+
+        // 清屏
+        function clearTerminal() {
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML = '';
+            sessionData = [];
+            
+            // 重置当前行状态
+            currentLine = '';
+            cursorCol = 0;
+            
+            // 直接显示光标，不添加任何文本
+            updateCurrentLine();
+            
+            // 发送clear命令到服务器
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send('clear\r');
+            }
+        }
+
+        // 重新连接
+        async function reconnect() {
+            if (websocket) {
+                websocket.close();
+            }
+            isConnected = false;
+            
+            // 清空终端
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML = '';
+            
+            // 重置状态
+            currentLine = '';
+            cursorCol = 0;
+            sessionData = [];
+            
+            // 重新连接
+            connectWebSocket();
+        }
+
+        // 显示帮助
+        function showHelp() {
+            const helpText = `
+WebShell 交互式终端帮助：
+  
+特点：
+- 真实的SSH连接，完全交互式体验
+- 支持vim、nano、htop等所有交互式程序
+- 支持完整的键盘输入（方向键、Ctrl组合键等）
+- 已禁用颜色显示以避免乱码
+
+快捷键：
+  Ctrl+C    - 发送中断信号
+  Ctrl+D    - 发送EOF信号
+  Ctrl+Z    - 发送暂停信号
+  Ctrl+L    - 清屏
+  方向键    - 光标移动/命令历史
+  Tab       - 自动完成
+
+交互式程序支持：
+- vim/vi     - 文本编辑器
+- nano       - 简单文本编辑器
+- htop/top   - 系统监控
+- less/more  - 文件查看
+- man        - 帮助手册
+
+注意：现在是完全的交互式终端，请像使用普通SSH客户端一样操作。
+            `.trim();
+            
+            addTerminalLine(helpText, 'success');
+        }
+
+        // 显示连接信息
+        async function showConnectionInfo() {
+            if (!isConnected) {
+                addTerminalLine('无活动连接', 'warning');
+                return;
+            }
+
+            const info = document.getElementById('connection-info');
+            const details = document.getElementById('connection-details');
+            
+            details.innerHTML = `
+                <strong>连接信息：</strong><br>
+                主机: ${deviceConfig.host}:${deviceConfig.port}<br>
+                用户: ${deviceConfig.user}<br>
+                设备: ${deviceConfig.deviceName}<br>
+                状态: 交互式终端已连接<br>
+                会话: ${sessionData.length} 条记录<br>
+                类型: WebSocket + SSH PTY
+            `;
+            
+            info.style.display = 'block';
+            setTimeout(() => {
+                info.style.display = 'none';
+            }, 5000);
+        }
+
+        // 导出会话
+        function exportSession() {
+            const content = sessionData.map(item => 
+                `[${new Date(item.timestamp).toLocaleString()}] ${item.content}`
+            ).join('\n');
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `webshell-${deviceConfig.deviceName}-${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 右键菜单
+        function showContextMenu(event) {
+            event.preventDefault();
+            const menu = document.getElementById('context-menu');
+            menu.style.display = 'block';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+        }
+
+        // 复制选中文本
+        function copySelection() {
+            const selection = window.getSelection();
+            if (selection.toString()) {
+                navigator.clipboard.writeText(selection.toString());
+            }
+            document.getElementById('context-menu').style.display = 'none';
+        }
+
+        // 粘贴文本
+        async function pasteText() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(text);
+                }
+            } catch (error) {
+                console.log('无法粘贴:', error);
+            }
+            document.getElementById('context-menu').style.display = 'none';
+        }
+
+        // 全选
+        function selectAll() {
+            const terminal = document.getElementById('terminal');
+            const range = document.createRange();
+            range.selectNodeContents(terminal);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.getElementById('context-menu').style.display = 'none';
+        }
+
+        // 切换最大化
+        function toggleMaximize() {
+            if (window.outerHeight === screen.availHeight && window.outerWidth === screen.availWidth) {
+                window.resizeTo(1200, 800);
+                window.moveTo((screen.availWidth - 1200) / 2, (screen.availHeight - 800) / 2);
+            } else {
+                window.resizeTo(screen.availWidth, screen.availHeight);
+                window.moveTo(0, 0);
+            }
+        }
+
+        // 关闭窗口
+        async function closeWindow() {
+            if (isConnected && websocket) {
+                if (confirm('确定要关闭WebShell连接吗？')) {
+                    await disconnectWebShell();
+                    window.close();
+                }
+            } else {
+                window.close();
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

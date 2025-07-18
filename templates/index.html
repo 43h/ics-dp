@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICS 开发平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-cogs"></i> ICS 开发平台 T0.1</h1>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main">
+            <!-- 左侧菜单栏 -->
+            <nav class="left-menu">
+                <div class="menu-header">
+                    <h3><i class="fas fa-bars"></i> 菜单</h3>
+                </div>
+                <ul class="menu-list">
+                    <li class="menu-item active" data-menu="devices">
+                        <i class="fas fa-server"></i>
+                        <span>设备信息</span>
+                    </li>
+                    <li class="menu-item" data-menu="configs">
+                        <i class="fas fa-cog"></i>
+                        <span>配置管理</span>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- 右侧内容区域 -->
+            <section class="right-content">
+                <!-- 设备信息视图 -->
+                <div id="devices-view" class="view-content active">
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-list"></i> 设备状态表</h3>
+                            <div class="section-actions">
+                                <button id="refresh-all-devices-btn" class="btn btn-primary">
+                                    <i class="fas fa-sync-alt"></i> 刷新全部
+                                </button>
+                            </div>
+                        </div>
+                        <div class="devices-table-container">
+                            <table id="devices-table" class="devices-table">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th>状态</th>
+                                        <th>项目数</th>
+                                        <th>最后更新</th>
+                                        <th>WebShell</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="devices-table-body">
+                                    <!-- 设备数据将在这里动态生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="content-section">
+                        <div class="section-header">
+                            <h3><i class="fas fa-info-circle"></i> 信息面板</h3>
+                            <div class="section-actions">
+                                <button id="clear-logs-btn" class="btn btn-outline">
+                                    <i class="fas fa-trash"></i> 清除日志
+                                </button>
+                            </div>
+                        </div>
+                        <div id="info-panel" class="info-panel">
+                            <div class="info-welcome">
+                                <i class="fas fa-info-circle"></i>
+                                <p>这里将显示设备操作、命令执行结果和错误信息</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置管理视图 -->
+                <div id="configs-view" class="view-content">
+                    <div class="content-section full-height">
+                        <div class="section-header">
+                            <h3><i class="fas fa-server"></i> 配置管理</h3>
+                            <div class="section-actions">
+                                <button id="add-config-btn" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> 添加配置
+                                </button>
+                            </div>
+                        </div>
+                        <div id="config-list" class="config-list">
+                            <!-- 配置列表将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 配置模态框 -->
+    <div id="config-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">添加配置</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="config-form" class="modal-body">
+                <div class="form-group">
+                    <label for="config-name">配置名称:</label>
+                    <input type="text" id="config-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="config-login-url">登录页面URL:</label>
+                    <input type="text" id="config-login-url" name="login_url" required 
+                           placeholder="https://192.168.1.100/login 或 192.168.1.100/login">
+                    <small style="color: #7f8c8d; font-size: 0.8rem;">如果不包含协议，将自动添加 http://</small>
+                </div>
+                <div class="form-group">
+                    <label for="config-data-url">数据页面URL:</label>
+                    <input type="text" id="config-data-url" name="data_url" required 
+                           placeholder="https://192.168.1.100/data 或 192.168.1.100/data">
+                    <small style="color: #7f8c8d; font-size: 0.8rem;">如果不包含协议，将自动添加 http://</small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="config-username">用户名:</label>
+                        <input type="text" id="config-username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="config-password">密码:</label>
+                        <input type="password" id="config-password" name="password" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="config-ssh-host">SSH主机:</label>
+                    <input type="text" id="config-ssh-host" name="ssh_host" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="config-ssh-user">SSH用户:</label>
+                        <input type="text" id="config-ssh-user" name="ssh_user" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="config-ssh-pass">SSH密码:</label>
+                        <input type="password" id="config-ssh-pass" name="ssh_pass" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="config-ssh-port">SSH端口:</label>
+                    <input type="number" id="config-ssh-port" name="ssh_port" value="22" required>
+                </div>
+                <div class="form-group">
+                    <button type="button" id="test-ssh-btn" class="btn btn-outline">
+                        <i class="fas fa-plug"></i> 测试SSH连接
+                    </button>
+                    <div id="ssh-test-result" class="ssh-test-result" style="display: none;">
+                        <!-- 测试结果将显示在这里 -->
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-btn">取消</button>
+                <button type="submit" form="config-form" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 命令执行模态框 -->
+    <div id="command-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>执行命令</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="command-input">命令:</label>
+                    <input type="text" id="command-input" placeholder="输入要执行的命令...">
+                </div>
+                <div class="form-group">
+                    <label>预设命令:</label>
+                    <div class="preset-commands">
+                        <button class="btn btn-outline" data-command="ps aux">查看进程</button>
+                        <button class="btn btn-outline" data-command="df -h">磁盘使用</button>
+                        <button class="btn btn-outline" data-command="free -h">内存使用</button>
+                        <button class="btn btn-outline" data-command="uptime">系统运行时间</button>
+                    </div>
+                </div>
+                <div id="command-output" class="command-output" style="display: none;">
+                    <label>执行结果:</label>
+                    <pre id="output-text"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="close-command-btn">关闭</button>
+                <button type="button" class="btn btn-primary" id="execute-command-btn">执行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载提示 -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>处理中...</p>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
