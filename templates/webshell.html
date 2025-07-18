@@ -866,7 +866,7 @@
             // 查找当前的提示符容器
             const promptContainer = terminal.querySelector('.current-line-container');
             if (promptContainer) {
-                // 如果有提示符容器，将用户输入添加到提示符后面
+                // 如果有提示符容器，只移除光标和类，不显示用户输入
                 const currentLineElement = promptContainer.querySelector('.current-line');
                 if (currentLineElement) {
                     // 移除光标
@@ -874,12 +874,7 @@
                     if (cursor) {
                         cursor.remove();
                     }
-                    // 添加用户输入的文本
-                    if (currentLine.trim()) {
-                        const userInput = document.createElement('span');
-                        userInput.textContent = currentLine;
-                        currentLineElement.appendChild(userInput);
-                    }
+                    // 不添加用户输入的文本，让服务器来回显
                 }
                 // 移除 current-line-container 类，使其成为历史记录
                 promptContainer.classList.remove('current-line-container');
@@ -887,20 +882,6 @@
                 const oldCurrentLine = promptContainer.querySelector('.current-line');
                 if (oldCurrentLine) {
                     oldCurrentLine.classList.remove('current-line');
-                }
-            } else {
-                // 如果没有提示符容器，创建普通行
-                if (currentLine.trim() !== '' || cursorCol > 0) {
-                    const lineElement = document.createElement('div');
-                    lineElement.className = 'terminal-line';
-                    lineElement.textContent = currentLine;
-                    terminal.appendChild(lineElement);
-                } else {
-                    // 空行也要创建元素
-                    const lineElement = document.createElement('div');
-                    lineElement.className = 'terminal-line';
-                    lineElement.innerHTML = '&nbsp;';
-                    terminal.appendChild(lineElement);
                 }
             }
             
