@@ -340,33 +340,36 @@ body {
 
 /* 信息面板样式 */
 .info-panel {
-    flex: 0 0 150px; /* 固定高度150px，不再弹性伸缩 */
-    padding: 1rem;
+    flex: 0 0 120px; /* 固定高度120px，减少高度 */
+    padding: 0.8rem;
     background: #f8f9fa;
     overflow-y: auto;
-    min-height: 150px;
-    max-height: 150px;
+    min-height: 120px;
+    max-height: 120px;
+    border-top: 2px solid #e1e8ed;
+    position: relative;
+    margin-top: auto; /* 推到底部 */
 }
 
 .info-welcome {
     text-align: center;
     color: #7f8c8d;
-    padding: 2rem;
+    padding: 1rem;
 }
 
 .info-welcome i {
-    font-size: 2rem;
-    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
     color: #667eea;
 }
 
 .info-log {
-    margin-bottom: 1rem;
-    padding: 1rem;
+    margin-bottom: 0.5rem;
+    padding: 0.6rem;
     border-radius: 6px;
     border-left: 4px solid #667eea;
     background: white;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 .info-log.success {
@@ -385,14 +388,15 @@ body {
 }
 
 .info-log-time {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #6c757d;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
 }
 
 .info-log-content {
     color: #2c3e50;
-    line-height: 1.4;
+    line-height: 1.3;
+    font-size: 0.8rem;
 }
 
 /* 配置列表样式 */
