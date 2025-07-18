@@ -340,12 +340,14 @@ body {
 
 /* 信息面板样式 */
 .info-panel {
-    flex: 0 0 120px; /* 固定高度120px，减少高度 */
+	flex-grow: 0;
+	flex-shrink: 0;
+	/* 移除固定高度，允许自适应 */
+	min-height: 0;
+	max-height: none;
     padding: 0.8rem;
     background: #f8f9fa;
     overflow-y: auto;
-    min-height: 120px;
-    max-height: 120px;
     border-top: 2px solid #e1e8ed;
     position: relative;
     margin-top: auto; /* 推到底部 */
