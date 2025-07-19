@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -37,7 +36,7 @@ var configs = []Config{
 		Name:     "测试配置",
 		LoginURL: "https://192.168.11.150/login",
 		Username: "sysadmin",
-		Password: "password",
+		Password: "csmp@CLOUD987654",
 	},
 }
 
@@ -156,93 +155,42 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 
 			// 通用的DOM稳定性检查
 			fmt.Printf("等待DOM稳定...\n")
-			for i := 0; i < 10; i++ { // 减少轮询次数到10次
+			for i := 0; i < 10; i++ {
 				var domStable bool
 				err := chromedp.EvaluateAsDevTools(`
 					(function() {
-						console.log('DOM稳定性检查第' + (arguments[0] || 0) + '次');
-						
-						// 检查是否有明显的loading指示器
-						var loadingElements = document.querySelectorAll('.loading, .spinner, .ant-spin-spinning');
-						var visibleLoading = 0;
-						for (var i = 0; i < loadingElements.length; i++) {
-							var style = window.getComputedStyle(loadingElements[i]);
-							if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
-								visibleLoading++;
-							}
-						}
-						console.log('可见loading元素数量:', visibleLoading);
-						
-						// 如果有明显的loading，继续等待
-						if (visibleLoading > 0) {
-							console.log('检测到loading状态，继续等待');
-							return false;
-						}
-						
-						// 检查输入框是否已经渲染并可见
-						var visibleInputs = 0;
-						var passwordInputs = 0;
-						var textInputs = 0;
-						
-						var allInputs = document.querySelectorAll('input');
-						console.log('总input元素数量:', allInputs.length);
-						
-						for (var i = 0; i < allInputs.length; i++) {
-							var input = allInputs[i];
-							var style = window.getComputedStyle(input);
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								input.offsetWidth > 0 && input.offsetHeight > 0) {
-								visibleInputs++;
-								if (input.type === 'password') {
-									passwordInputs++;
-								} else if (input.type === 'text' || input.type === 'email') {
-									textInputs++;
+						// 检查是否有loading指示器
+						var loadingElements = document.querySelectorAll('.loading, .spinner, [class*="loading"], [class*="spinner"]');
+						if (loadingElements.length > 0) {
+							for (var i = 0; i < loadingElements.length; i++) {
+								var style = window.getComputedStyle(loadingElements[i]);
+								if (style.display !== 'none' && style.visibility !== 'hidden') {
+									return false;
 								}
 							}
 						}
 						
-						console.log('可见输入框总数:', visibleInputs, '文本框:', textInputs, '密码框:', passwordInputs);
-						
-						// 检查按钮是否可见
-						var visibleButtons = 0;
-						var buttons = document.querySelectorAll('button, input[type="submit"]');
-						for (var i = 0; i < buttons.length; i++) {
-							var btn = buttons[i];
-							var style = window.getComputedStyle(btn);
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								btn.offsetWidth > 0 && btn.offsetHeight > 0) {
-								visibleButtons++;
+						// 检查输入框是否已经渲染并可见
+						var visibleInputs = 0;
+						var allInputs = document.querySelectorAll('input');
+						for (var i = 0; i < allInputs.length; i++) {
+							var input = allInputs[i];
+							if (input.id == 'username') || ) {
+								visibleInputs++;
+							} else if (input.id == 'password') {
+								visibleInputs++;
 							}
 						}
-						console.log('可见按钮数量:', visibleButtons);
-						
-						// 更宽松的检查条件：
-						// 1. 没有明显的loading指示器 AND
-						// 2. (有密码输入框 OR 有至少1个文本输入框) AND
-						// 3. (有按钮 OR 有表单)
-						var hasValidInputs = (passwordInputs >= 1) || (textInputs >= 1);
-						var hasValidSubmit = visibleButtons >= 1 || document.querySelectorAll('form').length >= 1;
-						
-						var isStable = hasValidInputs && hasValidSubmit;
-						console.log('DOM稳定性结果:', isStable, '输入框检查:', hasValidInputs, '提交方式检查:', hasValidSubmit);
-						
-						// 如果第5次检查仍未通过，但有基本的输入框，也认为稳定
-						if (!isStable && arguments[0] >= 4 && visibleInputs >= 1) {
-							console.log('强制认为页面稳定 - 检查次数>=5且有输入框');
-							return true;
-						}
-						
-						return isStable;
+						return visibleInputs >= 2; // 至少有2个可见输入框
 					})()
 				`, &domStable).Do(ctx)
 
 				if err == nil && domStable {
-					fmt.Printf("DOM已稳定(第%d次检查)\n", i+1)
+					fmt.Printf("DOM已稳定\n")
 					break
 				}
 
-				fmt.Printf("DOM未稳定，继续等待...(第%d次检查)\n", i+1)
-				chromedp.Sleep(1500 * time.Millisecond).Do(ctx) // 减少等待时间到1.5秒
+				chromedp.Sleep(1 * time.Second).Do(ctx)
 			}
 
 			fmt.Printf("页面加载检查完成\n")
@@ -282,49 +230,6 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 			if username == "" || password == "" {
 				fmt.Printf("未提供用户名或密码，跳过自动登录\n")
 				return nil
-			}
-
-			// 在自动登录前再次确认页面完全加载
-			fmt.Printf("自动登录前的最终页面检查...\n")
-			for i := 0; i < 3; i++ { // 减少检查次数到3次
-				var finalCheck bool
-				err := chromedp.EvaluateAsDevTools(`
-					(function() {
-						// 简化的最终检查
-						var inputs = document.querySelectorAll('input');
-						var visibleInputs = 0;
-						
-						for (var i = 0; i < inputs.length; i++) {
-							var input = inputs[i];
-							var style = window.getComputedStyle(input);
-							// 只检查基本可见性，不检查disabled状态
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								input.offsetWidth > 0 && input.offsetHeight > 0) {
-								visibleInputs++;
-							}
-						}
-						
-						// 检查是否还有明显的loading状态
-						var activeLoading = document.querySelectorAll('.ant-spin-spinning, .loading:not([style*="display: none"])').length;
-						
-						console.log('最终检查 - 可见输入框:', visibleInputs, '活跃loading:', activeLoading);
-						
-						// 宽松条件：有输入框且没有明显的loading
-						return visibleInputs >= 1 && activeLoading === 0;
-					})()
-				`, &finalCheck).Do(ctx)
-
-				if err == nil && finalCheck {
-					fmt.Printf("最终页面检查通过，开始自动登录\n")
-					break
-				}
-
-				if i < 2 {
-					fmt.Printf("页面仍未完全就绪，等待500ms后重试...\n")
-					chromedp.Sleep(500 * time.Millisecond).Do(ctx)
-				} else {
-					fmt.Printf("最终检查完成，开始尝试自动登录\n")
-				}
 			}
 
 			fmt.Printf("尝试自动填写登录信息...\n")
@@ -379,237 +284,273 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 
 // 执行自动登录
 func performAutoLogin(ctx context.Context, username, password string) error {
-	fmt.Printf("快速查找并填写登录信息...\n")
+	// 检测页面中的图标元素
+	fmt.Printf("检测页面中的用户名和密码图标...\n")
 
-	// 使用JavaScript一次性查找所有需要的元素并进行填写
-	var loginResult string
+	// 详细检测页面结构
+	var pageStructure string
 	err := chromedp.EvaluateAsDevTools(`
 		(function() {
-			var result = {
-				usernameInput: null,
-				passwordInput: null,
-				loginButton: null,
-				success: false,
-				message: ''
-			};
-
-			// 优先级选择器 - 从最具体到最通用
-			var usernameSelectors = [
-				'input#username[name="username"]',
-				'input[id="username"]',
-				'input[name="username"]',
-				'.username-icon + input',
-				'.csmpicon-user-admin + input',
-				'input[placeholder*="账号"]',
-				'input[placeholder*="用户"]',
-				'input[type="text"]',
-				'input[type="email"]'
-			];
-
-			var passwordSelectors = [
-				'input#password[name="password"]',
-				'input[id="password"]',
-				'input[name="password"]',
-				'input[type="password"]',
-				'.password-icon + input',
-				'.csmpicon-password + input'
-			];
-
-			var buttonSelectors = [
-				'button[type="submit"]',
-				'input[type="submit"]',
-				'button:contains("立即登录")',
-				'button:contains("Login")',
-				'form button',
-				'button.btn-primary'
-			];
-
-			// 查找用户名输入框
-			for (var i = 0; i < usernameSelectors.length; i++) {
-				var input = document.querySelector(usernameSelectors[i]);
-				if (input && input.offsetWidth > 0 && input.offsetHeight > 0) {
-					var style = window.getComputedStyle(input);
-					if (style.display !== 'none' && style.visibility !== 'hidden' && !input.disabled) {
-						result.usernameInput = usernameSelectors[i];
-						console.log('找到用户名输入框:', usernameSelectors[i]);
-						break;
+			var structure = '';
+			
+			// 检查用户名相关元素
+			var usernameInputs = document.querySelectorAll('input[name="username"], input[id="username"], input[placeholder*="账号"], input[placeholder*="用户"]');
+			if (usernameInputs.length > 0) {
+				structure += '用户名输入框信息:\n';
+				usernameInputs.forEach(function(input, index) {
+					structure += '  [' + index + '] ID: ' + (input.id || '无') + 
+								', Name: ' + (input.name || '无') + 
+								', Type: ' + (input.type || '无') + 
+								', Placeholder: ' + (input.placeholder || '无') + 
+								', Class: ' + (input.className || '无') + '\n';
+					
+					// 检查父容器
+					var parent = input.parentElement;
+					if (parent) {
+						structure += '      父容器Class: ' + (parent.className || '无') + '\n';
 					}
-				}
+				});
 			}
-
-			// 查找密码输入框
-			for (var i = 0; i < passwordSelectors.length; i++) {
-				var input = document.querySelector(passwordSelectors[i]);
-				if (input && input.offsetWidth > 0 && input.offsetHeight > 0) {
-					var style = window.getComputedStyle(input);
-					if (style.display !== 'none' && style.visibility !== 'hidden' && !input.disabled) {
-						result.passwordInput = passwordSelectors[i];
-						console.log('找到密码输入框:', passwordSelectors[i]);
-						break;
+			
+			// 检查密码相关元素
+			var passwordInputs = document.querySelectorAll('input[type="password"], input[name="password"], input[id="password"]');
+			if (passwordInputs.length > 0) {
+				structure += '密码输入框信息:\n';
+				passwordInputs.forEach(function(input, index) {
+					structure += '  [' + index + '] ID: ' + (input.id || '无') + 
+								', Name: ' + (input.name || '无') + 
+								', Type: ' + (input.type || '无') + 
+								', Placeholder: ' + (input.placeholder || '无') + 
+								', Class: ' + (input.className || '无') + '\n';
+					
+					// 检查父容器
+					var parent = input.parentElement;
+					if (parent) {
+						structure += '      父容器Class: ' + (parent.className || '无') + '\n';
 					}
-				}
+				});
 			}
-
-			// 查找登录按钮
-			for (var i = 0; i < buttonSelectors.length; i++) {
-				var btn = document.querySelector(buttonSelectors[i]);
-				if (btn && btn.offsetWidth > 0 && btn.offsetHeight > 0) {
-					var style = window.getComputedStyle(btn);
-					if (style.display !== 'none' && style.visibility !== 'hidden' && !btn.disabled) {
-						result.loginButton = buttonSelectors[i];
-						console.log('找到登录按钮:', buttonSelectors[i]);
-						break;
+			
+			// 检查登录按钮
+			var buttons = document.querySelectorAll('button, input[type="submit"]');
+			if (buttons.length > 0) {
+				structure += '按钮信息:\n';
+				buttons.forEach(function(btn, index) {
+					if (btn.textContent.includes('立即登录') || btn.textContent.includes('Login') || 
+						btn.value && (btn.value.includes('立即登录') || btn.value.includes('Login'))) {
+						structure += '  [' + index + '] 文本: ' + (btn.textContent || btn.value || '无') + 
+									', Type: ' + (btn.type || '无') + 
+									', Class: ' + (btn.className || '无') + '\n';
 					}
-				}
+				});
 			}
-
-			// 检查是否找到必要元素
-			if (result.usernameInput && result.passwordInput) {
-				result.success = true;
-				result.message = '找到用户名和密码输入框';
-			} else if (result.passwordInput) {
-				result.success = true;
-				result.message = '找到密码输入框';
-			} else {
-				result.message = '未找到合适的输入框';
-			}
-
-			return JSON.stringify(result);
+			
+			return structure;
 		})()
-	`, &loginResult).Do(ctx)
+	`, &pageStructure).Do(ctx)
 
-	if err != nil {
-		fmt.Printf("查找元素失败: %v\n", err)
-		return err
+	if err == nil && pageStructure != "" {
+		fmt.Printf("=== 页面结构分析 ===\n")
+		fmt.Printf("%s", pageStructure)
+		fmt.Printf("===================\n")
 	}
 
-	fmt.Printf("元素查找结果: %s\n", loginResult)
-
-	fmt.Printf("元素查找结果: %s\n", loginResult)
-
-	// 解析查找结果并直接填写
-	var fillSuccess bool
-	err = chromedp.EvaluateAsDevTools(fmt.Sprintf(`
+	// 检测用户名图标
+	var hasUsernameIcon bool
+	err = chromedp.EvaluateAsDevTools(`
 		(function() {
-			try {
-				var loginResult = %s;
-				var username = %q;
-				var password = %q;
-				var success = true;
-				var messages = [];
-
-				// 填写用户名
-				if (loginResult.usernameInput) {
-					var usernameEl = document.querySelector(loginResult.usernameInput);
-					if (usernameEl) {
-						usernameEl.focus();
-						usernameEl.value = '';
-						usernameEl.value = username;
-						
-						// 触发change事件
-						var changeEvent = new Event('change', { bubbles: true });
-						usernameEl.dispatchEvent(changeEvent);
-						var inputEvent = new Event('input', { bubbles: true });
-						usernameEl.dispatchEvent(inputEvent);
-						
-						messages.push('✓ 用户名填写成功');
-					} else {
-						success = false;
-						messages.push('✗ 用户名输入框不可用');
-					}
-				}
-
-				// 填写密码
-				if (loginResult.passwordInput) {
-					var passwordEl = document.querySelector(loginResult.passwordInput);
-					if (passwordEl) {
-						passwordEl.focus();
-						passwordEl.value = '';
-						passwordEl.value = password;
-						
-						// 触发change事件
-						var changeEvent = new Event('change', { bubbles: true });
-						passwordEl.dispatchEvent(changeEvent);
-						var inputEvent = new Event('input', { bubbles: true });
-						passwordEl.dispatchEvent(inputEvent);
-						
-						messages.push('✓ 密码填写成功');
-					} else {
-						success = false;
-						messages.push('✗ 密码输入框不可用');
-					}
-				}
-
-				console.log(messages.join(', '));
-				return success;
-			} catch (e) {
-				console.error('填写失败:', e);
-				return false;
+			// 检查是否存在 username-icon 或用户管理员图标
+			var usernameIcon = document.querySelector('.username-icon, .csmpicon-user-admin');
+			if (usernameIcon) {
+				console.log('找到用户名图标:', usernameIcon.className);
+				return true;
 			}
+			return false;
 		})()
-	`, loginResult, username, password), &fillSuccess).Do(ctx)
+	`, &hasUsernameIcon).Do(ctx)
 
-	if err != nil {
-		fmt.Printf("填写失败: %v\n", err)
-		return err
+	if err == nil && hasUsernameIcon {
+		fmt.Printf("检测到用户名图标元素\n")
 	}
 
-	if fillSuccess {
-		fmt.Printf("账号密码填写成功\n")
-	} else {
-		fmt.Printf("账号密码填写失败\n")
+	// 检测密码图标
+	var hasPasswordIcon bool
+	err = chromedp.EvaluateAsDevTools(`
+		(function() {
+			// 检查是否存在 password-icon 或密码图标
+			var passwordIcon = document.querySelector('.password-icon, .csmpicon-password');
+			if (passwordIcon) {
+				console.log('找到密码图标:', passwordIcon.className);
+				return true;
+			}
+			return false;
+		})()
+	`, &hasPasswordIcon).Do(ctx)
+
+	if err == nil && hasPasswordIcon {
+		fmt.Printf("检测到密码图标元素\n")
 	}
 
-	// 短暂等待
-	chromedp.Sleep(300 * time.Millisecond).Do(ctx)
+	// 扩展的用户名输入框选择器，包含特定图标相关的选择器
+	usernameSelectors := []string{
+		// Angular和Ant Design相关选择器（优先）
+		`input#username[name="username"]`,
+		`input[id="username"]`,
+		`input[name="username"][nz-input]`,
+		`input[placeholder*="输入账号"]`,
+		`input[placeholder*="账号"]`,
+		`.input-text-c input`,
+		`.input-text-c input[type="text"]`,
+
+		// 特定图标相关的选择器
+		`.username-icon + input`,
+		`.username-icon ~ input`,
+		`.csmpicon-user-admin + input`,
+		`.csmpicon-user-admin ~ input`,
+		`input[class*="username"]`,
+		`input[id*="username"]`,
+
+		// 通用选择器
+		`input[name="username"]`,
+		`input[name="user"]`,
+		`input[name="email"]`,
+		`input[name="login"]`,
+		`input[name="account"]`,
+		`input[type="text"]`,
+		`input[type="email"]`,
+		`#username`, `#user`, `#email`, `#login`, `#account`,
+		`.username`, `.user`, `.login`,
+		`input[placeholder*="用户"]`,
+		`input[placeholder*="Username"]`,
+		`input[placeholder*="User"]`,
+		`input[placeholder*="Account"]`,
+	}
+
+	// 扩展的密码输入框选择器，包含特定图标相关的选择器
+	passwordSelectors := []string{
+		// Angular和Ant Design相关选择器（优先）
+		`input#password[name="password"]`,
+		`input[id="password"]`,
+		`input[name="password"][nz-input]`,
+		`input[placeholder*="输入密码"]`,
+		`input[placeholder*="密码"]`,
+		`.input-text-c input[type="password"]`,
+
+		// 特定图标相关的选择器
+		`.password-icon + input`,
+		`.password-icon ~ input`,
+		`.csmpicon-password + input`,
+		`.csmpicon-password ~ input`,
+		`input[class*="password"]`,
+		`input[id*="password"]`,
+
+		// 通用选择器
+		`input[name="password"]`,
+		`input[name="pwd"]`,
+		`input[name="passwd"]`,
+		`input[type="password"]`,
+		`#password`, `#pwd`, `#passwd`,
+		`.password`, `.pwd`,
+		`input[placeholder*="Password"]`,
+		`input[placeholder*="Pass"]`,
+	}
+
+	// 常用的登录按钮选择器
+	buttonSelectors := []string{
+		`button[type="submit"]`,
+		`input[type="submit"]`,
+		`button:contains("立即登录")`,
+		`button:contains("Login")`,
+		`input[value*="立即登录"]`,
+		`input[value*="Login"]`,
+		`.login-btn`, `.login-button`,
+		`#login`, `#loginBtn`,
+		`button.btn-primary`,
+		`form button`,
+	}
+
+	// 尝试填写用户名
+	for _, selector := range usernameSelectors {
+		var visible bool
+		err := chromedp.EvaluateAsDevTools(fmt.Sprintf(`
+			(function() {
+				var el = document.querySelector('%s');
+				if (!el) return false;
+				var style = window.getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden' && 
+					   el.offsetWidth > 0 && el.offsetHeight > 0;
+			})()
+		`, selector), &visible).Do(ctx)
+
+		if err == nil && visible {
+			fmt.Printf("找到用户名输入框: %s\n", selector)
+			err = chromedp.Run(ctx,
+				chromedp.Clear(selector, chromedp.ByQuery),
+				chromedp.SendKeys(selector, username, chromedp.ByQuery),
+			)
+			if err == nil {
+				fmt.Printf("成功填入用户名\n")
+				break
+			}
+		}
+	}
+
+	chromedp.Sleep(500 * time.Millisecond).Do(ctx)
+
+	// 尝试填写密码
+	for _, selector := range passwordSelectors {
+		var visible bool
+		err := chromedp.EvaluateAsDevTools(fmt.Sprintf(`
+			(function() {
+				var el = document.querySelector('%s');
+				if (!el) return false;
+				var style = window.getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden' && 
+					   el.offsetWidth > 0 && el.offsetHeight > 0;
+			})()
+		`, selector), &visible).Do(ctx)
+
+		if err == nil && visible {
+			fmt.Printf("找到密码输入框: %s\n", selector)
+			err = chromedp.Run(ctx,
+				chromedp.Clear(selector, chromedp.ByQuery),
+				chromedp.SendKeys(selector, password, chromedp.ByQuery),
+			)
+			if err == nil {
+				fmt.Printf("成功填入密码\n")
+				break
+			}
+		}
+	}
+
+	chromedp.Sleep(500 * time.Millisecond).Do(ctx)
 
 	// 尝试点击登录按钮
-	var buttonClicked bool
-	err = chromedp.EvaluateAsDevTools(fmt.Sprintf(`
-		(function() {
-			try {
-				var loginResult = %s;
-				if (loginResult.loginButton) {
-					var btn = document.querySelector(loginResult.loginButton);
-					if (btn && !btn.disabled) {
-						btn.click();
-						console.log('✓ 登录按钮点击成功');
-						return true;
-					}
-				}
-				
-				// 如果没有找到按钮，尝试查找其他登录按钮
-				var buttons = document.querySelectorAll('button, input[type="submit"]');
-				for (var i = 0; i < buttons.length; i++) {
-					var btn = buttons[i];
-					var text = (btn.textContent || btn.value || '').toLowerCase();
-					if (text.includes('登录') || text.includes('login')) {
-						var style = window.getComputedStyle(btn);
-						if (style.display !== 'none' && style.visibility !== 'hidden' && !btn.disabled) {
-							btn.click();
-							console.log('✓ 找到并点击登录按钮:', text);
-							return true;
-						}
-					}
-				}
-				
-				console.log('✗ 未找到可用的登录按钮');
-				return false;
-			} catch (e) {
-				console.error('按钮点击失败:', e);
-				return false;
-			}
-		})()
-	`, loginResult), &buttonClicked).Do(ctx)
+	for _, selector := range buttonSelectors {
+		var visible bool
+		err := chromedp.EvaluateAsDevTools(fmt.Sprintf(`
+			(function() {
+				var el = document.querySelector('%s');
+				if (!el) return false;
+				var style = window.getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden' && 
+					   el.offsetWidth > 0 && el.offsetHeight > 0;
+			})()
+		`, selector), &visible).Do(ctx)
 
-	if err == nil && buttonClicked {
-		fmt.Printf("登录按钮点击成功\n")
-		chromedp.Sleep(1 * time.Second).Do(ctx)
-		return nil
+		if err == nil && visible {
+			fmt.Printf("找到登录按钮: %s\n", selector)
+			err = chromedp.Click(selector, chromedp.ByQuery).Do(ctx)
+			if err == nil {
+				fmt.Printf("成功点击登录按钮\n")
+				chromedp.Sleep(2 * time.Second).Do(ctx)
+				return nil
+			}
+		}
 	}
 
-	// 如果按钮点击失败，尝试回车提交
-	fmt.Printf("尝试使用回车键提交\n")
+	// 如果没找到按钮，尝试回车提交
+	fmt.Printf("未找到登录按钮，尝试回车提交\n")
 	return chromedp.SendKeys(`input[type="password"]`, "\r", chromedp.ByQuery).Do(ctx)
 }
 
@@ -716,46 +657,13 @@ func main() {
 		c.JSON(200, gin.H{"configs": configs})
 	})
 
-	// 命令行测试模式
-	if len(os.Args) > 1 && os.Args[1] == "test" {
-		testURL := "https://192.168.11.150/login"
-		if len(os.Args) > 2 {
-			testURL = os.Args[2]
-		}
-
-		username := ""
-		password := ""
-		if len(os.Args) > 4 {
-			username = os.Args[3]
-			password = os.Args[4]
-		}
-
-		fmt.Printf("测试模式: 打开 %s\n", testURL)
-		result, err := openLoginPageWithChromedp(testURL, username, password)
-		if err != nil {
-			log.Fatalf("测试失败: %v", err)
-		}
-		fmt.Printf("测试结果: %+v\n", result)
-		return
+	result, err := openLoginPageWithChromedp(configs[0].LoginURL, configs[0].Username, configs[0].Password)
+	if err != nil {
+		log.Fatalf("测试失败: %v", err)
 	}
+	fmt.Printf("测试结果: %+v\n", result)
 
 	// 启动服务器
 	fmt.Println("=== Login Service ===")
 	fmt.Println("服务启动在端口 8080")
-	fmt.Println("")
-	fmt.Println("测试命令:")
-	fmt.Println("  go run login.go test [URL] [username] [password]")
-	fmt.Println("")
-	fmt.Println("API端点:")
-	fmt.Println("  POST /login")
-	fmt.Println("  GET /health")
-	fmt.Println("  GET /configs")
-	fmt.Println("")
-	fmt.Println("请求示例:")
-	fmt.Println(`  curl -X POST http://localhost:8080/login \
-    -H "Content-Type: application/json" \
-    -d '{"login_url": "https://192.168.11.150/login", "use_browser": true}'`)
-	fmt.Println("")
-
-	r.Run(":8080")
 }
