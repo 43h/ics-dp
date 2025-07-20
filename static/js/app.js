@@ -148,7 +148,6 @@ class ICPlatform {
                 this.loadDevices();
             }
         } catch (error) {
-            console.error('加载配置失败:', error);
             this.showNotification('加载配置失败', 'error');
             this.addLogToInfoPanel('加载配置失败: ' + error.message, 'error');
         }
@@ -708,6 +707,8 @@ class ICPlatform {
                 this.addLogToInfoPanel(`${device.name} 获取到 ${data.length} 个组件`, 'success');
             } else {
                 throw new Error('刷新失败');
+				const data = await response.json();
+				this.showNotification(`刷新 ${device.name} 失败: ${data.error}`, 'error');
             }
         } catch (error) {
             console.error('刷新设备失败:', error);
