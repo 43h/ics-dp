@@ -2,25 +2,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	"github.com/gin-gonic/gin"
 )
 
-// 浏览器登录结果
 type BrowserLoginResult struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
 	URL       string `json:"url"`
 	PageTitle string `json:"page_title"`
 	Error     string `json:"error,omitempty"`
+	Data      string `json:"data,omitempty"` // 新增
 }
 
-// 使用chromedp打开并显示登录页面
 func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLoginResult, error) {
 	fmt.Printf("使用chromedp打开登录页面: %s\n", loginURL)
 
@@ -51,6 +52,7 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 	var pageTitle string
 	var currentURL string
 	var loginSuccess bool
+	var devicesInfo string
 
 	// 执行浏览器操作
 	err := chromedp.Run(ctx,
@@ -60,79 +62,11 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 		// 2. 等待页面完全加载完成
 		chromedp.WaitReady("body", chromedp.ByQuery),
 
-		// 等待页面动态内容加载完成
+		// 3.等待页面动态内容加载完成
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			fmt.Printf("等待页面完全加载...\n")
-
-			// 等待基本元素加载
+			// 等待3秒钟，确保页面加载完成
 			chromedp.Sleep(3 * time.Second).Do(ctx)
-
-			// 检查是否有Angular应用
-			var hasAngular bool
-			err := chromedp.EvaluateAsDevTools(`
-				(function() {
-					return window.angular !== undefined || 
-						   document.querySelector('[ng-app]') !== null ||
-						   document.querySelector('[data-ng-app]') !== null ||
-						   document.querySelectorAll('[_ngcontent]').length > 0;
-				})()
-			`, &hasAngular).Do(ctx)
-
-			if err == nil && hasAngular {
-				fmt.Printf("检测到Angular应用，等待Angular加载完成...\n")
-
-				// 轮询等待Angular加载完成
-				for i := 0; i < 10; i++ {
-					var ready bool
-					err := chromedp.EvaluateAsDevTools(`
-						(function() {
-							// 检查Angular是否完成初始化
-							if (window.angular) {
-								var element = document.querySelector('[ng-app], [data-ng-app]') || document.body;
-								try {
-									var scope = window.angular.element(element).scope();
-									return scope && scope.$$phase === null;
-								} catch(e) {
-									return false;
-								}
-							}
-							
-							// 检查是否有pending的HTTP请求
-							var pendingRequests = document.querySelectorAll('.loading, [aria-busy="true"]').length;
-							if (pendingRequests > 0) {
-								return false;
-							}
-							
-							// 检查表单元素是否已渲染
-							var inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
-							return inputs.length > 0;
-						})()
-					`, &ready).Do(ctx)
-
-					if err == nil && ready {
-						fmt.Printf("Angular加载完成\n")
-						break
-					}
-
-					chromedp.Sleep(1 * time.Second).Do(ctx)
-				}
-			}
-
-			// 检查是否有React应用
-			var hasReact bool
-			err = chromedp.EvaluateAsDevTools(`
-				(function() {
-					return window.React !== undefined || 
-						   document.querySelector('[data-reactroot]') !== null ||
-						   document.querySelectorAll('[data-react]').length > 0;
-				})()
-			`, &hasReact).Do(ctx)
-
-			if err == nil && hasReact {
-				fmt.Printf("检测到React应用，等待React渲染完成...\n")
-				chromedp.Sleep(2 * time.Second).Do(ctx)
-			}
-
 			// 通用的DOM稳定性检查
 			fmt.Printf("等待DOM稳定...\n")
 			for i := 0; i < 10; i++ { // 减少轮询次数到10次
@@ -158,60 +92,20 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 							return false;
 						}
 						
-						// 检查输入框是否已经渲染并可见
-						var visibleInputs = 0;
-						var passwordInputs = 0;
 						var textInputs = 0;
-						
 						var allInputs = document.querySelectorAll('input');
 						console.log('总input元素数量:', allInputs.length);
 						
 						for (var i = 0; i < allInputs.length; i++) {
 							var input = allInputs[i];
-							var style = window.getComputedStyle(input);
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								input.offsetWidth > 0 && input.offsetHeight > 0) {
-								visibleInputs++;
-								if (input.type === 'password') {
-									passwordInputs++;
-								} else if (input.type === 'text' || input.type === 'email') {
-									textInputs++;
-								}
+							if (input.id == 'username'){
+								textInputs++;
+							} else if (input.id == 'password') {
+								textInputs++;
 							}
 						}
 						
-						console.log('可见输入框总数:', visibleInputs, '文本框:', textInputs, '密码框:', passwordInputs);
-						
-						// 检查按钮是否可见
-						var visibleButtons = 0;
-						var buttons = document.querySelectorAll('button, input[type="submit"]');
-						for (var i = 0; i < buttons.length; i++) {
-							var btn = buttons[i];
-							var style = window.getComputedStyle(btn);
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								btn.offsetWidth > 0 && btn.offsetHeight > 0) {
-								visibleButtons++;
-							}
-						}
-						console.log('可见按钮数量:', visibleButtons);
-						
-						// 更宽松的检查条件：
-						// 1. 没有明显的loading指示器 AND
-						// 2. (有密码输入框 OR 有至少1个文本输入框) AND
-						// 3. (有按钮 OR 有表单)
-						var hasValidInputs = (passwordInputs >= 1) || (textInputs >= 1);
-						var hasValidSubmit = visibleButtons >= 1 || document.querySelectorAll('form').length >= 1;
-						
-						var isStable = hasValidInputs && hasValidSubmit;
-						console.log('DOM稳定性结果:', isStable, '输入框检查:', hasValidInputs, '提交方式检查:', hasValidSubmit);
-						
-						// 如果第5次检查仍未通过，但有基本的输入框，也认为稳定
-						if (!isStable && arguments[0] >= 4 && visibleInputs >= 1) {
-							console.log('强制认为页面稳定 - 检查次数>=5且有输入框');
-							return true;
-						}
-						
-						return isStable;
+						return true;
 					})()
 				`, &domStable).Do(ctx)
 
@@ -228,96 +122,21 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 			return nil
 		}),
 
-		// 额外等待确保所有异步操作完成
-		chromedp.Sleep(1*time.Second),
-
-		// 3. 获取页面信息
+		// 4. 获取页面信息
 		chromedp.Title(&pageTitle),
 		chromedp.Location(&currentURL),
-
-		// 4. 显示页面信息
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Printf("=== 页面信息 ===\n")
-			fmt.Printf("页面标题: %s\n", pageTitle)
-			fmt.Printf("当前URL: %s\n", currentURL)
-
-			// 获取页面内容预览
-			var bodyText string
-			err := chromedp.Text("body", &bodyText, chromedp.ByQuery).Do(ctx)
-			if err == nil {
-				if len(bodyText) > 300 {
-					fmt.Printf("页面内容预览: %s...\n", bodyText[:300])
-				} else {
-					fmt.Printf("页面内容: %s\n", bodyText)
-				}
-			}
-
-			fmt.Printf("================\n")
-			return nil
-		}),
 
 		// 5. 如果提供了用户名和密码，尝试自动登录
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			if username == "" || password == "" {
 				fmt.Printf("未提供用户名或密码，跳过自动登录\n")
-				return nil
+				return errors.New("用户名或密码不能为空")
+			} else {
+				return performAutoLogin(ctx, username, password)
 			}
-
-			// 在自动登录前再次确认页面完全加载
-			fmt.Printf("自动登录前的最终页面检查...\n")
-			for i := 0; i < 3; i++ { // 减少检查次数到3次
-				var finalCheck bool
-				err := chromedp.EvaluateAsDevTools(`
-					(function() {
-						// 简化的最终检查
-						var inputs = document.querySelectorAll('input');
-						var visibleInputs = 0;
-						
-						for (var i = 0; i < inputs.length; i++) {
-							var input = inputs[i];
-							var style = window.getComputedStyle(input);
-							// 只检查基本可见性，不检查disabled状态
-							if (style.display !== 'none' && style.visibility !== 'hidden' && 
-								input.offsetWidth > 0 && input.offsetHeight > 0) {
-								visibleInputs++;
-							}
-						}
-						
-						// 检查是否还有明显的loading状态
-						var activeLoading = document.querySelectorAll('.ant-spin-spinning, .loading:not([style*="display: none"])').length;
-						
-						console.log('最终检查 - 可见输入框:', visibleInputs, '活跃loading:', activeLoading);
-						
-						// 宽松条件：有输入框且没有明显的loading
-						return visibleInputs >= 1 && activeLoading === 0;
-					})()
-				`, &finalCheck).Do(ctx)
-
-				if err == nil && finalCheck {
-					fmt.Printf("最终页面检查通过，开始自动登录\n")
-					break
-				}
-
-				if i < 2 {
-					fmt.Printf("页面仍未完全就绪，等待500ms后重试...\n")
-					chromedp.Sleep(500 * time.Millisecond).Do(ctx)
-				} else {
-					fmt.Printf("最终检查完成，开始尝试自动登录\n")
-				}
-			}
-
-			fmt.Printf("尝试自动填写登录信息...\n")
-			return performAutoLogin(ctx, username, password)
 		}),
 
-		// 6. 等待用户查看或操作
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			fmt.Printf("页面将保持打开状态30秒，您可以手动操作...\n")
-			return nil
-		}),
-		chromedp.Sleep(30*time.Second),
-
-		// 7. 最终检查登录状态
+		// 6. 最终检查登录状态
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var finalURL string
 			err := chromedp.Location(&finalURL).Do(ctx)
@@ -326,24 +145,111 @@ func openLoginPageWithChromedp(loginURL, username, password string) (*BrowserLog
 				loginSuccess = true
 				currentURL = finalURL
 			}
+			chromedp.Sleep(3 * time.Second).Do(ctx)
+			return nil
+		}),
+
+		// 6. 进入我的服务
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			fmt.Printf("尝试点击“我的服务”菜单...\n")
+			var check bool
+			err := chromedp.EvaluateAsDevTools(`
+				(function() {
+					var spans = document.querySelectorAll('span');
+					for (var i = 0; i < spans.length; i++) {
+						var span = spans[i];
+						if (span.title === "我的服务") {
+							// 找到后，向上查找可点击的父元素
+							var el = span;
+							while (el && el !== document.body) {
+								if (el.classList && el.classList.contains('q-menu-vertical-submenu__title')) {
+									el.click();
+									console.log('已点击“我的服务”菜单');
+									return true;
+								}
+								el = el.parentElement;
+							}
+						}
+					}
+					console.log('未找到“我的服务”菜单');
+					return false;
+				})()
+			`, &check).Do(ctx)
+			if err == nil {
+				fmt.Printf("已尝试点击“我的服务”菜单\n")
+			} else {
+				fmt.Printf("点击“我的服务”菜单失败: %v\n", err)
+			}
+			return nil
+		}),
+
+		// 7. 点击组件列表
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			fmt.Printf("尝试点击“组件列表”菜单...\n")
+			var check bool
+			err := chromedp.EvaluateAsDevTools(`
+				 (function() {
+					// 查找所有 span，找到 title="组件列表" 的
+					var spans = document.querySelectorAll('span[title="组件列表"]');
+					for (var i = 0; i < spans.length; i++) {
+						var span = spans[i];
+						if (span.title === "组件列表") {
+							// 向上查找 a 标签
+							var el = span;
+							while (el && el !== document.body) {
+								if (el.tagName && el.tagName.toLowerCase() === 'a') {
+									el.click();
+									console.log('已点击“组件列表”菜单');
+									return true;
+								}
+								el = el.parentElement;
+							}
+						}
+					}
+					console.log('未找到“组件列表”菜单');
+					return false;
+				})()
+			`, &check).Do(ctx)
+			if err == nil {
+				fmt.Printf("已尝试点击“组件列表”菜单\n")
+			} else {
+				fmt.Printf("点击“组件列表”菜单失败: %v\n", err)
+			}
+			chromedp.Sleep(3 * time.Second).Do(ctx) // 等待页面加载
+			return nil
+		}),
+
+		// 8.获取body内容
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var finalURL string
+			err := chromedp.Location(&finalURL).Do(ctx)
+			if err == nil && finalURL != currentURL {
+				fmt.Printf("URL已变化: %s -> %s\n", currentURL, finalURL)
+				loginSuccess = true
+				currentURL = finalURL
+			}
+			err = chromedp.OuterHTML(".ant-table-body", &devicesInfo, chromedp.ByQuery).Do(ctx)
+			if err != nil {
+				fmt.Printf("获取body内容失败: %v\n", err)
+				return err
+			}
+			fmt.Printf("获取到body内容: %s\n", devicesInfo)
 			return nil
 		}),
 	)
-
 	if err != nil {
-		log.Printf("chromedp操作失败: %v", err)
+		fmt.Printf("chromedp操作失败: %v\n", err)
 		return &BrowserLoginResult{
 			Success: false,
-			Message: "打开页面失败",
-			URL:     loginURL,
-			Error:   fmt.Sprintf("chromedp操作失败: %v", err),
+			Message: "操作失败",
+			Error:   err.Error(),
 		}, err
 	}
-
 	result := &BrowserLoginResult{
 		Success:   loginSuccess,
 		URL:       currentURL,
 		PageTitle: pageTitle,
+		Data:      devicesInfo,
 	}
 
 	if loginSuccess {
@@ -374,33 +280,19 @@ func performAutoLogin(ctx context.Context, username, password string) error {
 
 			// 优先级选择器 - 从最具体到最通用
 			var usernameSelectors = [
-				'input#username[name="username"]',
-				'input[id="username"]',
-				'input[name="username"]',
-				'.username-icon + input',
-				'.csmpicon-user-admin + input',
-				'input[placeholder*="账号"]',
-				'input[placeholder*="用户"]',
-				'input[type="text"]',
-				'input[type="email"]'
+				'input[id="username"]'
 			];
 
 			var passwordSelectors = [
-				'input#password[name="password"]',
-				'input[id="password"]',
-				'input[name="password"]',
-				'input[type="password"]',
-				'.password-icon + input',
-				'.csmpicon-password + input'
+				'input[id="password"]'
 			];
 
 			var buttonSelectors = [
 				'button[type="submit"]',
 				'input[type="submit"]',
-				'button:contains("立即登录")',
-				'button:contains("Login")',
 				'form button',
-				'button.btn-primary'
+				'button.btn-primary',
+				'button.ant-btn-primary'
 			];
 
 			// 查找用户名输入框
@@ -593,7 +485,7 @@ func performAutoLogin(ctx context.Context, username, password string) error {
 }
 
 // 登录处理函数
-func csmp(c *gin.Context) {
+func handleCsmp(c *gin.Context) {
 	var loginURL, username, password string
 
 	id := c.Param("id")
@@ -606,8 +498,8 @@ func csmp(c *gin.Context) {
 	}
 
 	if loginURL == "" || username == "" || password == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "登录信息错误",
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "配置信息错误",
 			"details": "",
 		})
 		return
@@ -616,11 +508,42 @@ func csmp(c *gin.Context) {
 	result, err := openLoginPageWithChromedp(loginURL, username, password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "浏览器自动化失败",
+			"error":   "获取数据失败",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	listItems, err := parseTableHTMLToListItems(result.Data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "解析数据失败",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, listItems)
+}
+func parseTableHTMLToListItems(html string) ([]ListItem, error) {
+	var items []ListItem
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, err
+	}
+	doc.Find("tbody tr").Each(func(i int, tr *goquery.Selection) {
+		tds := tr.Find("td")
+		if tds.Length() < 9 {
+			return // 跳过不完整行
+		}
+		item := ListItem{
+			ID:            strings.TrimSpace(tds.Eq(1).Find("a").Text()),
+			Title:         strings.TrimSpace(tds.Eq(2).Text()),
+			ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
+			IPAddress:     strings.TrimSpace(tds.Eq(7).Text()),
+			Status:        strings.TrimSpace(tds.Eq(8).Find("span.ant-badge-status-text").Text()),
+		}
+		items = append(items, item)
+	})
+	return items, nil
 }

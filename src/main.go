@@ -29,7 +29,6 @@ type ListItem struct {
 	ID            string `json:"id"`
 	Title         string `json:"title"`
 	Description   string `json:"description"`
-	URL           string `json:"url"`
 	Status        string `json:"status"`
 	CanExecute    bool   `json:"can_execute"`
 	ComponentType string `json:"component_type"`
