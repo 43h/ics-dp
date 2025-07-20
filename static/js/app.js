@@ -56,22 +56,6 @@ class ICPlatform {
             });
         });
 
-        // 命令执行模态框
-        document.getElementById('close-command-btn').addEventListener('click', () => {
-            this.hideModals();
-        });
-
-        document.getElementById('execute-command-btn').addEventListener('click', () => {
-            this.executeCommand();
-        });
-
-        // 预设命令按钮
-        document.querySelectorAll('.preset-commands .btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.getElementById('command-input').value = btn.dataset.command;
-            });
-        });
-
         // 点击模态框外部关闭
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', (e) => {
@@ -105,17 +89,6 @@ class ICPlatform {
             delete form.dataset.configId;
         }
 
-        modal.classList.add('show');
-    }
-
-    showCommandModal(itemId) {
-        const modal = document.getElementById('command-modal');
-        modal.dataset.itemId = itemId;
-        
-        // 重置表单
-        document.getElementById('command-input').value = '';
-        document.getElementById('command-output').style.display = 'none';
-        
         modal.classList.add('show');
     }
 
@@ -279,56 +252,6 @@ class ICPlatform {
             case '警告': return 'warning';
             case '错误': return 'error';
             default: return 'normal';
-        }
-    }
-
-    async executeCommand() {
-        const modal = document.getElementById('command-modal');
-        const itemId = modal.dataset.itemId;
-        const command = document.getElementById('command-input').value.trim();
-
-        if (!command) {
-            this.showNotification('请输入命令', 'warning');
-            return;
-        }
-
-        if (!this.currentConfig) {
-            this.showNotification('请先选择配置', 'warning');
-            return;
-        }
-
-        try {
-            this.showLoading();
-            this.addLogToInfoPanel(`执行命令: ${command}`, 'info');
-            
-            const response = await fetch('/api/execute', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    config_id: this.currentConfig.id,
-                    item_id: itemId,
-                    command: command
-                })
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                document.getElementById('command-output').style.display = 'block';
-                document.getElementById('output-text').textContent = result.result;
-                this.showNotification('命令执行成功', 'success');
-                this.addLogToInfoPanel(`命令执行成功: ${result.result.substring(0, 100)}${result.result.length > 100 ? '...' : ''}`, 'success');
-            } else {
-                throw new Error(result.error || '命令执行失败');
-            }
-        } catch (error) {
-            console.error('命令执行失败:', error);
-            this.showNotification('命令执行失败: ' + error.message, 'error');
-            this.addLogToInfoPanel(`命令执行失败: ${error.message}`, 'error');
-        } finally {
-            this.hideLoading();
         }
     }
 
@@ -524,7 +447,7 @@ class ICPlatform {
                         <h4><i class="fas fa-list"></i> 组件信息</h4>
                         <div id="details-content-${device.id}">
                             ${device.status === 'online' && device.data ? 
-                                this.renderDeviceDetails(device.data) : 
+                                this.renderDeviceDetails(device.data, device.id) : 
                                 '<p style="color: #7f8c8d; text-align: center; padding: 1rem;">点击刷新更新组件信息</p>'}
                         </div>
                     </div>
@@ -533,7 +456,7 @@ class ICPlatform {
         `).join('');
     }
 
-    renderDeviceDetails(data) {
+    renderDeviceDetails(data, deviceId) {
         if (!data || data.length === 0) {
             return '<p style="color: #7f8c8d; text-align: center; padding: 1rem;">暂无组件信息</p>';
         }
@@ -561,9 +484,9 @@ class ICPlatform {
                                 </span>
                             </td>
                             <td>
-                                ${item.can_execute ? 
-                                    `<button class="btn btn-primary" onclick="app.showCommandModal('${item.id}')">
-                                        <i class="fas fa-terminal"></i> 执行命令
+                                ${item.status === '运行中'? 
+                                    `<button class="btn btn-primary" onclick="app.jumpToVNC('${item.name}','${deviceId}')">
+                                        <i class="fas fa-external-link-alt"></i> VNC
                                     </button>` : 
                                     '<span style="color: #7f8c8d;">-</span>'}
                             </td>
@@ -668,6 +591,46 @@ class ICPlatform {
 		} catch (e) {
 			// 如果URL解析失败，忽略处理
 		}
+        // 在新标签页打开登录页面
+        window.open(loginUrl, '_blank');
+        
+        this.showNotification(`已在新标签页打开 ${config.name} 的登录页面`, 'info');
+        this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
+    }
+	
+	jumpToVNC(itemName, deviceId) {
+		console.log(`跳转到VNC: ${itemName}, 设备ID: ${deviceId}`);
+        const config = this.configs.find(c => c.id === deviceId);
+        if (!config) {
+            this.showNotification('设备配置不存在', 'error');
+            return;
+        }
+
+			if (!config.ssh_host || !config.ssh_user || !config.ssh_pass) {
+				this.showNotification('设备SSH配置不完整，请先配置SSH信息', 'warning');
+				this.selectDeviceConfig(deviceId);
+				return;
+			}
+
+			// 构建VNC跳转URL（假设后端有 /vnc 路由处理SSH连接和VNC跳转）
+			const params = new URLSearchParams({
+				deviceId: config.id,
+				deviceName: config.name,
+				host: config.ssh_host,
+				user: config.ssh_user,
+				pass: config.ssh_pass,
+				port: config.ssh_port || '22',
+				item: itemName
+			});
+			const vncUrl = `/vnc?${params.toString()}`;
+
+			// 在新标签页打开VNC页面
+			window.open(vncUrl, '_blank');
+
+			this.showNotification(`已在新标签页打开 ${config.name} 的VNC页面`, 'info');
+			this.addLogToInfoPanel(`跳转到 ${config.name} VNC页面: ${vncUrl}`, 'info');
+
+
         // 在新标签页打开登录页面
         window.open(loginUrl, '_blank');
         
