@@ -160,39 +160,6 @@
         </div>
     </div>
 
-    <!-- 命令执行模态框 -->
-    <div id="command-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>执行命令</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="command-input">命令:</label>
-                    <input type="text" id="command-input" placeholder="输入要执行的命令...">
-                </div>
-                <div class="form-group">
-                    <label>预设命令:</label>
-                    <div class="preset-commands">
-                        <button class="btn btn-outline" data-command="ps aux">查看进程</button>
-                        <button class="btn btn-outline" data-command="df -h">磁盘使用</button>
-                        <button class="btn btn-outline" data-command="free -h">内存使用</button>
-                        <button class="btn btn-outline" data-command="uptime">系统运行时间</button>
-                    </div>
-                </div>
-                <div id="command-output" class="command-output" style="display: none;">
-                    <label>执行结果:</label>
-                    <pre id="output-text"></pre>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="close-command-btn">关闭</button>
-                <button type="button" class="btn btn-primary" id="execute-command-btn">执行</button>
-            </div>
-        </div>
-    </div>
-
     <!-- 加载提示 -->
     <div id="loading" class="loading" style="display: none;">
         <div class="spinner"></div>
