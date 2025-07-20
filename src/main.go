@@ -122,7 +122,7 @@ func main() {
 		api.PUT("/configs/:id", updateConfig)
 		api.DELETE("/configs/:id", deleteConfig)
 
-		// 数据抓取相关路由
+		// csmp实例信息路由
 		api.GET("/csmp/:id", handleCsmp)
 
 		// WebShell WebSocket API
