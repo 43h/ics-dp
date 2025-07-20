@@ -407,19 +407,50 @@ func parseTableHTMLToListItems(html string) ([]ListItem, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 解析表头
+	var headers []string
+	doc.Find("thead tr th").Each(func(i int, th *goquery.Selection) {
+		headers = append(headers, strings.TrimSpace(th.Text()))
+	})
+
+	// 判断表格类型
+	isLongTable := false
+	for _, h := range headers {
+		if strings.Contains(h, "描述信息") || strings.Contains(h, "HA角色") {
+			isLongTable = true
+			break
+		}
+	}
+
+	// 解析数据行
 	doc.Find("tbody tr").Each(func(i int, tr *goquery.Selection) {
 		tds := tr.Find("td")
-		if tds.Length() < 9 {
-			return // 跳过不完整行
+		if isLongTable {
+			// 长表格，列数多
+			if tds.Length() < 13 {
+				return
+			}
+			item := ListItem{
+				Name:          strings.TrimSpace(tds.Eq(1).Find("a").Text()),
+				ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
+				IPAddress:     strings.TrimSpace(tds.Eq(9).Text()),
+				Status:        strings.TrimSpace(tds.Eq(12).Find("span.ant-badge-status-text").Text()),
+			}
+			items = append(items, item)
+		} else {
+			// 短表格，列数少
+			if tds.Length() < 9 {
+				return
+			}
+			item := ListItem{
+				Name:          strings.TrimSpace(tds.Eq(1).Find("a").Text()),
+				ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
+				IPAddress:     strings.TrimSpace(tds.Eq(7).Text()),
+				Status:        strings.TrimSpace(tds.Eq(8).Find("span.ant-badge-status-text").Text()),
+			}
+			items = append(items, item)
 		}
-		item := ListItem{
-			ID:            strings.TrimSpace(tds.Eq(1).Find("a").Text()),
-			Title:         strings.TrimSpace(tds.Eq(2).Text()),
-			ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
-			IPAddress:     strings.TrimSpace(tds.Eq(7).Text()),
-			Status:        strings.TrimSpace(tds.Eq(8).Find("span.ant-badge-status-text").Text()),
-		}
-		items = append(items, item)
 	})
 	return items, nil
 }

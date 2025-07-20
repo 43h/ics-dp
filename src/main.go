@@ -26,9 +26,7 @@ type Config struct {
 
 // 列表项结构
 type ListItem struct {
-	ID            string `json:"id"`
-	Title         string `json:"title"`
-	Description   string `json:"description"`
+	Name          string `json:"name"`
 	Status        string `json:"status"`
 	CanExecute    bool   `json:"can_execute"`
 	ComponentType string `json:"component_type"`

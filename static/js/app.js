@@ -552,7 +552,7 @@ class ICPlatform {
                 <tbody>
                     ${data.map(item => `
                         <tr>
-                            <td><strong>${item.title}</strong></td>
+                            <td><strong>${item.name}</strong></td>
                             <td>${item.component_type || '未知类型'}</td>
                             <td>${item.ip_address || '未知IP'}</td>
                             <td>
