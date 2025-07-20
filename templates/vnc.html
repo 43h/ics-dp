@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVNC - ICS Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="/novnc/core/novnc.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0c0c0c;
+            color: #00ff00;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .webvnc-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .webvnc-header {
+            background: #1e1e1e;
+            border-bottom: 1px solid #333;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            min-height: 50px;
+        }
+
+        .webvnc-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .webvnc-toolbar {
+            background: #2d2d2d;
+            padding: 8px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            background: #404040;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #505050;
+        }
+
+        .webvnc-canvas {
+            flex: 1;
+            background: #0c0c0c;
+            overflow: auto;
+        }
+
+        #vnc-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .connection-info {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ccc;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 11px;
+            border: 1px solid #333;
+            display: none;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .window-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .window-btn.close {
+            background: #ff5f56;
+        }
+
+        .window-btn.minimize {
+            background: #ffbd2e;
+        }
+
+        .window-btn.maximize {
+            background: #27ca3f;
+        }
+
+        .window-btn:hover {
+            opacity: 0.8;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: #2d2d2d;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 5px 0;
+            z-index: 1000;
+            display: none;
+            min-width: 120px;
+        }
+
+        .context-menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 12px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-menu-item:hover {
+            background: #404040;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #555;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="webvnc-container">
+        <!-- 头部 -->
+        <div class="webvnc-header">
+            <div class="webvnc-title">
+                <i class="fas fa-desktop"></i>
+                <span id="session-title">WebVNC - 连接中...</span>
+            </div>
+            <div class="connection-status">
+                <div class="status-indicator" id="status-indicator"></div>
+                <span id="connection-text">断开连接</span>
+                <div class="window-controls">
+                    <button class="window-btn minimize" onclick="window.minimize && window.minimize()"></button>
+                    <button class="window-btn maximize" onclick="toggleMaximize()"></button>
+                    <button class="window-btn close" onclick="closeWindow()"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="webvnc-toolbar">
+            <button class="toolbar-btn" onclick="reconnect()" title="重新连接">
+                <i class="fas fa-redo"></i> 重连
+            </button>
+            <button class="toolbar-btn" onclick="showConnectionInfo()" title="连接信息">
+                <i class="fas fa-info-circle"></i> 信息
+            </button>
+            <button class="toolbar-btn" onclick="sendCtrlAltDel()" title="发送 Ctrl+Alt+Del">
+                <i class="fas fa-keyboard"></i> Ctrl+Alt+Del
+            </button>
+            <button class="toolbar-btn" onclick="toggleClipboard()" title="剪贴板">
+                <i class="fas fa-clipboard"></i> 剪贴板
+            </button>
+        </div>
+
+        <!-- VNC 显示区域 -->
+        <div class="webvnc-canvas" id="vnc-container" oncontextmenu="showContextMenu(event)"></div>
+
+        <!-- 连接信息面板 -->
+        <div class="connection-info" id="connection-info">
+            <div id="connection-details"></div>
+        </div>
+
+        <!-- 右键菜单 -->
+        <div class="context-menu" id="context-menu">
+            <button class="context-menu-item" onclick="copyClipboard()">
+                <i class="fas fa-copy"></i> 复制
+            </button>
+            <button class="context-menu-item" onclick="pasteClipboard()">
+                <i class="fas fa-paste"></i> 粘贴
+            </button>
+            <div class="context-menu-separator"></div>
+            <button class="context-menu-item" onclick="sendCtrlAltDel()">
+                <i class="fas fa-keyboard"></i> Ctrl+Alt+Del
+            </button>
+            <button class="context-menu-item" onclick="reconnect()">
+                <i class="fas fa-redo"></i> 重连
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let deviceConfig = null;
+        let rfb = null;
+        let isConnected = false;
+
+        // 从 URL 参数获取设备信息
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                deviceId: params.get('deviceId'),
+                itemName: params.get('itemName'),
+                deviceName: params.get('deviceName')
+            };
+        }
+
+        // 初始化
+        function init() {
+            deviceConfig = getUrlParams();
+            if (!deviceConfig.deviceId || !deviceConfig.itemName) {
+                alert('缺少设备参数或项目名称');
+                return;
+            }
+
+            document.getElementById('session-title').textContent = `WebVNC - ${deviceConfig.deviceName}`;
+            connectVNC();
+
+            // 隐藏右键菜单
+            document.addEventListener('click', () => {
+                document.getElementById('context-menu').style.display = 'none';
+            });
+
+            // 窗口关闭事件
+            window.addEventListener('beforeunload', () => {
+                if (rfb) {
+                    rfb.disconnect();
+                }
+            });
+        }
+
+        // 连接 VNC
+        function connectVNC() {
+            updateConnectionStatus('连接中...', false);
+
+            // 获取 VNC 地址
+            fetch(`/api/vnc/${deviceConfig.deviceId}?itemName=${deviceConfig.itemName}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to get VNC address');
+                    return response.text();
+                })
+                .then(vncAddress => {
+                    const [host, port] = vncAddress.split(':');
+                    if (!host || !port) throw new Error('Invalid VNC address');
+
+                    const wsUrl = `ws://${window.location.host}/vnc/ws?host=${host}&port=${port}`;
+                    rfb = new RFB(document.getElementById('vnc-container'), wsUrl, {
+                        credentials: { password: '' } // 若需密码，需从后端获取
+                    });
+
+                    rfb.scaleViewport = true;
+                    rfb.resizeSession = true;
+
+                    rfb.addEventListener('connect', () => {
+                        isConnected = true;
+                        updateConnectionStatus('已连接', true);
+                    });
+
+                    rfb.addEventListener('disconnect', () => {
+                        isConnected = false;
+                        updateConnectionStatus('连接已断开', false);
+                        setTimeout(() => {
+                            if (confirm('VNC 连接断开，是否重连？')) reconnect();
+                        }, 1000);
+                    });
+
+                    rfb.addEventListener('clipboard', (e) => {
+                        navigator.clipboard.writeText(e.detail.text);
+                    });
+                })
+                .catch(err => {
+                    updateConnectionStatus('连接失败', false);
+                    alert(`错误: ${err.message}`);
+                });
+        }
+
+        // 更新连接状态
+        function updateConnectionStatus(text, connected) {
+            document.getElementById('connection-text').textContent = text;
+            const indicator = document.getElementById('status-indicator');
+            if (connected) {
+                indicator.classList.add('connected');
+            } else {
+                indicator.classList.remove('connected');
+            }
+        }
+
+        // 重新连接
+        function reconnect() {
+            if (rfb) {
+                rfb.disconnect();
+            }
+            isConnected = false;
+            connectVNC();
+        }
+
+        // 发送 Ctrl+Alt+Del
+        function sendCtrlAltDel() {
+            if (rfb && isConnected) {
+                rfb.sendCtrlAltDel();
+            }
+        }
+
+        // 切换剪贴板
+        function toggleClipboard() {
+            if (rfb && isConnected) {
+                rfb.clipboardPasteFrom(navigator.clipboard.readText().then(text => text));
+            }
+        }
+
+        // 复制剪贴板
+        function copyClipboard() {
+            document.getElementById('context-menu').style.display = 'none';
+            // noVNC 自动处理剪贴板事件，复制已由 rfb.clipboard 事件处理
+        }
+
+        // 粘贴剪贴板
+        async function pasteClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (rfb && isConnected) {
+                    rfb.clipboardPasteFrom(text);
+                }
+            } catch (error) {
+                console.log('无法粘贴:', error);
+            }
+            document.getElementById('context-menu').style.display = 'none';
+        }
+
+        // 显示连接信息
+        function showConnectionInfo() {
+            if (!isConnected) {
+                alert('无活动连接');
+                return;
+            }
+
+            const info = document.getElementById('connection-info');
+            const details = document.getElementById('connection-details');
+            details.innerHTML = `
+                <strong>连接信息：</strong><br>
+                设备: ${deviceConfig.deviceName}<br>
+                虚拟机: ${deviceConfig.itemName}<br>
+                状态: VNC 已连接<br>
+                类型: WebSocket + VNC
+            `;
+            info.style.display = 'block';
+            setTimeout(() => {
+                info.style.display = 'none';
+            }, 5000);
+        }
+
+        // 右键菜单
+        function showContextMenu(event) {
+            event.preventDefault();
+            const menu = document.getElementById('context-menu');
+            menu.style.display = 'block';
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+        }
+
+        // 切换最大化
+        function toggleMaximize() {
+            if (window.outerHeight === screen.availHeight && window.outerWidth === screen.availWidth) {
+                window.resizeTo(1200, 800);
+                window.moveTo((screen.availWidth - 1200) / 2, (screen.availHeight - 800) / 2);
+            } else {
+                window.resizeTo(screen.availWidth, screen.availHeight);
+                window.moveTo(0, 0);
+            }
+        }
+
+        // 关闭窗口
+        function closeWindow() {
+            if (isConnected && rfb) {
+                if (confirm('确定要关闭 WebVNC 连接吗？')) {
+                    rfb.disconnect();
+                    window.close();
+                }
+            } else {
+                window.close();
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
