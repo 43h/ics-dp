@@ -594,71 +594,33 @@ func performAutoLogin(ctx context.Context, username, password string) error {
 
 // 登录处理函数
 func csmp(c *gin.Context) {
-	var loginData struct {
-		ConfigID   int    `json:"config_id"`
-		LoginURL   string `json:"login_url"`   // 可选：直接提供URL
-		Username   string `json:"username"`    // 可选：直接提供用户名
-		Password   string `json:"password"`    // 可选：直接提供密码
-		UseBrowser bool   `json:"use_browser"` // 是否使用浏览器自动化
+	var loginURL, username, password string
+
+	id := c.Param("id")
+	for _, config := range configs {
+		if fmt.Sprintf("%d", config.ID) == id {
+			loginURL = config.LoginURL
+			username = config.Username
+			password = config.Password
+		}
 	}
 
-	if err := c.ShouldBindJSON(&loginData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if loginURL == "" || username == "" || password == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "登录信息错误",
+			"details": "",
+		})
 		return
 	}
 
-	var loginURL, username, password string
-
-	// 如果直接提供了URL，使用直接提供的参数
-	if loginData.LoginURL != "" {
-		loginURL = loginData.LoginURL
-		username = loginData.Username
-		password = loginData.Password
-	} else {
-		// 否则从配置中查找
-		var config *Config
-		for _, cfg := range configs {
-			if cfg.ID == loginData.ConfigID {
-				config = &cfg
-				break
-			}
-		}
-
-		if config == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "配置未找到"})
-			return
-		}
-
-		loginURL = config.LoginURL
-		username = config.Username
-		password = config.Password
-	}
-
-	if loginURL == "" {
-		loginURL = "https://192.168.11.150/login" // 默认URL
-	}
-
-	fmt.Printf("=== 开始登录流程 ===\n")
-	fmt.Printf("登录URL: %s\n", loginURL)
-	fmt.Printf("使用浏览器: %v\n", loginData.UseBrowser)
-
-	if loginData.UseBrowser {
-		// 使用chromedp浏览器自动化
-		result, err := openLoginPageWithChromedp(loginURL, username, password)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "浏览器自动化失败",
-				"details": err.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, result)
-	} else {
-		// 返回简单响应（不使用浏览器）
-		c.JSON(http.StatusOK, gin.H{
-			"message": "请设置 use_browser: true 来使用浏览器自动化",
-			"url":     loginURL,
+	result, err := openLoginPageWithChromedp(loginURL, username, password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "浏览器自动化失败",
+			"details": err.Error(),
 		})
+		return
 	}
+
+	c.JSON(http.StatusOK, result)
 }

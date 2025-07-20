@@ -154,58 +154,13 @@ class ICPlatform {
             if (this.configs.length === 0) {
                 this.addLogToInfoPanel('暂无配置，请点击"配置管理"添加配置', 'warning');
             } else {
-                this.addLogToInfoPanel(`已加载 ${this.configs.length} 个配置，设备需要手动登录`, 'info');
-                // 移除自动登录，只加载设备信息
+                this.addLogToInfoPanel(`已加载 ${this.configs.length} 个配置`, 'info');
                 this.loadDevices();
             }
         } catch (error) {
             console.error('加载配置失败:', error);
             this.showNotification('加载配置失败', 'error');
             this.addLogToInfoPanel('加载配置失败: ' + error.message, 'error');
-        }
-    }
-
-    async autoLoginAllConfigs() {
-        this.addLogToInfoPanel('开始自动登录所有配置...', 'info');
-        
-        let successCount = 0;
-        let failureCount = 0;
-        
-        for (const config of this.configs) {
-            try {
-                this.addLogToInfoPanel(`正在登录 ${config.name}...`, 'info');
-                
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        config_id: config.id
-                    })
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    this.sessionKeys[config.id] = result.session_key;
-                    this.addLogToInfoPanel(`${config.name} 登录成功`, 'success');
-                    successCount++;
-                } else {
-                    throw new Error(result.error || '登录失败');
-                }
-            } catch (error) {
-                console.error(`${config.name} 登录失败:`, error);
-                this.addLogToInfoPanel(`${config.name} 登录失败: ${error.message}`, 'error');
-                failureCount++;
-            }
-        }
-        
-        this.addLogToInfoPanel(`配置自动登录完成 - 成功: ${successCount}, 失败: ${failureCount}`, 'info');
-        
-        // 如果有成功的登录，立即更新设备状态
-        if (successCount > 0) {
-            this.addLogToInfoPanel('正在更新设备状态...', 'info');
         }
     }
 
@@ -342,7 +297,7 @@ class ICPlatform {
         const data = Object.fromEntries(formData);
         
         // 验证URL格式
-        const urlFields = ['login_url', 'data_url'];
+        const urlFields = ['login_url'];
         for (const field of urlFields) {
             if (data[field]) {
                 try {
@@ -392,44 +347,8 @@ class ICPlatform {
         }
     }
 
-    async login() {
-        if (!this.currentConfig) {
-            this.showNotification('请先选择一个配置', 'warning');
-            return;
-        }
-
-        try {
-            this.showLoading();
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    config_id: this.currentConfig.id
-                })
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                this.sessionKeys[this.currentConfig.id] = result.session_key;
-                this.showNotification('登录成功', 'success');
-                this.addLogToInfoPanel(`${this.currentConfig.name} 登录成功`, 'success');
-                await this.refreshData();
-            } else {
-                throw new Error(result.error || '登录失败');
-            }
-        } catch (error) {
-            console.error('登录失败:', error);
-            this.showNotification('登录失败: ' + error.message, 'error');
-        } finally {
-            this.hideLoading();
-        }
-    }
-
     async refreshData() {
-        if (!this.currentConfig || !this.sessionKeys[this.currentConfig.id]) {
+        if (!this.currentConfig) {
             this.showNotification('请先登录', 'warning');
             return;
         }
@@ -438,7 +357,7 @@ class ICPlatform {
             this.showLoading();
             console.log('开始刷新数据，配置ID:', this.currentConfig.id);
             
-            const response = await fetch(`/api/scrape/${this.currentConfig.id}`);
+            const response = await fetch(`/csmp/${this.currentConfig.id}`);
             console.log('响应状态:', response.status, response.statusText);
             console.log('响应头:', Object.fromEntries(response.headers.entries()));
             
@@ -459,10 +378,6 @@ class ICPlatform {
                     console.log('原始响应:', responseText);
                     throw new Error('响应数据格式错误');
                 }
-            } else if (response.status === 401) {
-                this.showNotification('会话已过期，请重新登录', 'warning');
-                delete this.sessionKeys[this.currentConfig.id];
-                this.addLogToInfoPanel('会话已过期，请重新登录', 'warning');
             } else {
                 const errorText = await response.text();
                 console.error('请求失败响应:', errorText);
@@ -700,7 +615,6 @@ class ICPlatform {
                                     name: config.name,
                                     status: 'online',
                                     loginUrl: config.login_url,
-                                    dataUrl: config.data_url,
                                     itemCount: data.length,
                                     lastUpdate: new Date().toLocaleString(),
                                     data: data
@@ -722,7 +636,6 @@ class ICPlatform {
                             name: config.name,
                             status: 'offline',
                             loginUrl: config.login_url,
-                            dataUrl: config.data_url,
                             itemCount: 0,
                             lastUpdate: '连接失败',
                             error: error.message
@@ -734,7 +647,6 @@ class ICPlatform {
                         name: config.name,
                         status: 'warning',
                         loginUrl: config.login_url,
-                        dataUrl: config.data_url,
                         itemCount: 0,
                         lastUpdate: '未登录',
                         needLogin: true
@@ -775,21 +687,16 @@ class ICPlatform {
                 <td>
                     <span class="device-status-badge ${device.status}">
                         ${device.status === 'online' ? '在线' : 
-                          device.status === 'offline' ? '离线' : '未登录'}
+                          device.status === 'offline' ? '离线' : '离线'}
                     </span>
                 </td>
                 <td>${device.itemCount}</td>
                 <td>${device.lastUpdate}</td>
                 <td>
                     <div class="device-actions">
-                        ${device.needLogin ? 
-                            `<button class="btn btn-success" onclick="app.quickLogin(${device.id})">
-                                <i class="fas fa-sign-in-alt"></i> 连接
-                            </button>` : ''}               
-                        ${device.status === 'online' ? 
-                            `<button class="btn btn-primary" onclick="app.refreshDevice(${device.id})">
-                                <i class="fas fa-sync-alt"></i> 刷新
-                            </button>` : ''}
+                        <button class="btn btn-success" onclick="app.refreshDevice(${device.id})">
+                            <i class="fas fa-sync-alt"></i> 刷新
+                        </button>
                     </div>
                 </td>
                 <td>
@@ -799,7 +706,7 @@ class ICPlatform {
                 </td>
                 <td>
                     <button class="btn btn-info" onclick="app.jumpToLogin(${device.id})" title="跳转到原始登录页面">
-                        <i class="fas fa-external-link-alt"></i> 跳转登录
+                        <i class="fas fa-external-link-alt"></i> 跳转
                     </button>
                 </td>
             </tr>
@@ -990,7 +897,7 @@ class ICPlatform {
 
         try {
             this.showLoading();
-            const response = await fetch(`/api/scrape/${deviceId}`);
+            const response = await fetch(`/csmp/${deviceId}`);
             if (response.ok) {
                 const data = await response.json();
                 device.data = data;
