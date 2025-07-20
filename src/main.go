@@ -125,6 +125,10 @@ func main() {
 
 		// WebShell WebSocket API
 		api.GET("/webshell/ws", handleWebShellWebSocket)
+
+		// vnc地址
+		api.GET("/vnc/:id", getVNCAddress)
+
 	}
 
 	fmt.Println("服务器运行在 http://localhost:8080")

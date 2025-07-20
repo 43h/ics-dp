@@ -598,7 +598,7 @@ class ICPlatform {
         this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
     }
 	
-	jumpToVNC(itemName, deviceId) {
+	async jumpToVNC(itemName, deviceId) {
 		console.log(`跳转到VNC: ${itemName}, 设备ID: ${deviceId}`);
         const config = this.configs.find(c => c.id === deviceId);
         if (!config) {
@@ -606,29 +606,40 @@ class ICPlatform {
             return;
         }
 
-			if (!config.ssh_host || !config.ssh_user || !config.ssh_pass) {
-				this.showNotification('设备SSH配置不完整，请先配置SSH信息', 'warning');
-				this.selectDeviceConfig(deviceId);
-				return;
-			}
+ 		try {
+            this.showLoading();
+			const response = await fetch(`/api/vnc/${deviceId}?itemName=${encodeURIComponent(itemName)}`);
+            if (response.ok) {
+                const data = await response.json();          
+                // 更新整个设备表格
+                this.renderDevices();
+                
+                // 如果详情是展开的，保持展开状态
+                const detailsRow = document.getElementById(`details-${deviceId}`);
+                if (detailsRow && detailsRow.classList.contains('show')) {
+                    this.toggleDeviceDetails(deviceId);
+                }
+              	this.addLogToInfoPanel(`VNC地址: ${data.address}`, 'success');
+            } else {
+				const data = await response.json();
+				this.showNotification(data.error || 'VNC打开跳转失败', 'error');
+    			this.addLogToInfoPanel(`VNC获取失败: ${data.error || '未知错误'}`, 'error');
+            }
+        } catch (error) {
+            console.error('VNC:', error);
+            this.showNotification(`VNC打开失败`, 'error');
+            this.addLogToInfoPanel(`VNC打开失败: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    
+		const vncUrl = `/vnc?${params.toString()}`;
 
-			// 构建VNC跳转URL（假设后端有 /vnc 路由处理SSH连接和VNC跳转）
-			const params = new URLSearchParams({
-				deviceId: config.id,
-				deviceName: config.name,
-				host: config.ssh_host,
-				user: config.ssh_user,
-				pass: config.ssh_pass,
-				port: config.ssh_port || '22',
-				item: itemName
-			});
-			const vncUrl = `/vnc?${params.toString()}`;
+		// 在新标签页打开VNC页面
+		window.open(vncUrl, '_blank');
 
-			// 在新标签页打开VNC页面
-			window.open(vncUrl, '_blank');
-
-			this.showNotification(`已在新标签页打开 ${config.name} 的VNC页面`, 'info');
-			this.addLogToInfoPanel(`跳转到 ${config.name} VNC页面: ${vncUrl}`, 'info');
+		this.showNotification(`已在新标签页打开 ${config.name} 的VNC页面`, 'info');
+		this.addLogToInfoPanel(`跳转到 ${config.name} VNC页面: ${vncUrl}`, 'info');
 
 
         // 在新标签页打开登录页面
