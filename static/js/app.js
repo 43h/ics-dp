@@ -16,7 +16,6 @@ class ICPlatform {
         this.setupEventListeners();
         this.addLogToInfoPanel('系统正在初始化...', 'info');
         await this.loadConfigs();
-        // 等待配置加载和自动登录完成后再加载设备
         await this.loadDevices();
         this.addLogToInfoPanel('系统初始化完成', 'success');
     }
@@ -42,11 +41,6 @@ class ICPlatform {
         // 清除日志按钮
         document.getElementById('clear-logs-btn').addEventListener('click', () => {
             this.clearInfoPanel();
-        });
-
-        // SSH测试按钮
-        document.getElementById('test-ssh-btn').addEventListener('click', () => {
-            this.testSSHConnection();
         });
 
         // 配置表单提交
@@ -100,10 +94,6 @@ class ICPlatform {
         const modal = document.getElementById('config-modal');
         const title = document.getElementById('modal-title');
         const form = document.getElementById('config-form');
-        const sshTestResult = document.getElementById('ssh-test-result');
-
-        // 隐藏SSH测试结果
-        sshTestResult.style.display = 'none';
 
         if (config) {
             title.textContent = '编辑配置';
@@ -228,69 +218,6 @@ class ICPlatform {
         }
     }
 
-    async testSSHConnection() {
-        const form = document.getElementById('config-form');
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData);
-        
-        // 验证必填字段
-        const requiredFields = ['ssh_host', 'ssh_user', 'ssh_pass'];
-        for (const field of requiredFields) {
-            if (!data[field] || data[field].trim() === '') {
-                this.showNotification(`请填写${field === 'ssh_host' ? 'SSH主机' : field === 'ssh_user' ? 'SSH用户' : 'SSH密码'}`, 'warning');
-                return;
-            }
-        }
-
-        const resultDiv = document.getElementById('ssh-test-result');
-        const testBtn = document.getElementById('test-ssh-btn');
-        
-        try {
-            // 显示测试中状态
-            testBtn.disabled = true;
-            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'ssh-test-result testing';
-            resultDiv.innerHTML = '<i class="fas fa-clock"></i> 正在测试SSH连接...';
-
-            const response = await fetch('/api/test-ssh', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ssh_host: data.ssh_host.trim(),
-                    ssh_user: data.ssh_user.trim(),
-                    ssh_pass: data.ssh_pass,
-                    ssh_port: data.ssh_port || '22'
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                resultDiv.className = 'ssh-test-result success';
-                resultDiv.innerHTML = `
-                    <i class="fas fa-check-circle"></i> SSH连接测试成功<br>
-                    <small>${result.result.trim()}</small>
-                `;
-                this.showNotification('SSH连接测试成功', 'success');
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            resultDiv.className = 'ssh-test-result error';
-            resultDiv.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i> SSH连接测试失败<br>
-                <small>${error.message}</small>
-            `;
-            this.showNotification('SSH连接测试失败', 'error');
-        } finally {
-            testBtn.disabled = false;
-            testBtn.innerHTML = '<i class="fas fa-plug"></i> 测试SSH连接';
-        }
-    }
-
     async saveConfig() {
         const form = document.getElementById('config-form');
         const formData = new FormData(form);
@@ -345,63 +272,6 @@ class ICPlatform {
         } finally {
             this.hideLoading();
         }
-    }
-
-    async refreshData() {
-        if (!this.currentConfig) {
-            this.showNotification('请先登录', 'warning');
-            return;
-        }
-
-        try {
-            this.showLoading();
-            console.log('开始刷新数据，配置ID:', this.currentConfig.id);
-            
-            const response = await fetch(`/csmp/${this.currentConfig.id}`);
-            console.log('响应状态:', response.status, response.statusText);
-            console.log('响应头:', Object.fromEntries(response.headers.entries()));
-            
-            if (response.ok) {
-                const responseText = await response.text();
-                console.log('响应文本长度:', responseText.length);
-                console.log('响应文本前500字符:', responseText.substring(0, 500));
-                
-                try {
-                    this.currentData = JSON.parse(responseText);
-                    console.log('解析的数据:', this.currentData);
-                    console.log('数据项数量:', this.currentData.length);
-                    
-                    this.renderData();
-                    this.showNotification('数据刷新成功', 'success');
-                } catch (parseError) {
-                    console.error('JSON解析失败:', parseError);
-                    console.log('原始响应:', responseText);
-                    throw new Error('响应数据格式错误');
-                }
-            } else {
-                const errorText = await response.text();
-                console.error('请求失败响应:', errorText);
-                throw new Error('获取数据失败: ' + response.status);
-            }
-        } catch (error) {
-            console.error('刷新数据失败:', error);
-            this.showNotification('刷新数据失败: ' + error.message, 'error');
-        } finally {
-            this.hideLoading();
-        }
-    }
-
-    renderData() {
-        // 在新的UI中，数据显示在信息面板中
-        if (this.currentData.length === 0) {
-            this.addLogToInfoPanel('暂无数据', 'info');
-            return;
-        }
-
-        this.addLogToInfoPanel(`获取到 ${this.currentData.length} 条数据`, 'success');
-        this.currentData.forEach(item => {
-            this.addLogToInfoPanel(`${item.title}: ${item.description}`, 'info');
-        });
     }
 
     getStatusClass(status) {
@@ -588,80 +458,19 @@ class ICPlatform {
     }
 
     async loadDevices() {
-        try {
-            this.showLoading();
-            
-            // 模拟从所有配置的设备获取信息
-            this.devices = [];
-            
-            for (const config of this.configs) {
-                if (this.sessionKeys[config.id]) {
-                    try {
-                        console.log(`正在获取设备 ${config.name} 的数据...`);
-                        const response = await fetch(`/api/scrape/${config.id}`);
-                        console.log(`设备 ${config.name} 响应状态:`, response.status);
-                        
-                        if (response.ok) {
-                            const responseText = await response.text();
-                            console.log(`设备 ${config.name} 响应长度:`, responseText.length);
-                            
-                            try {
-                                const data = JSON.parse(responseText);
-                                console.log(`设备 ${config.name} 解析的数据:`, data);
-                                console.log(`设备 ${config.name} 组件数量:`, data.length);
-                                
-                                this.devices.push({
-                                    id: config.id,
-                                    name: config.name,
-                                    status: 'online',
-                                    loginUrl: config.login_url,
-                                    itemCount: data.length,
-                                    lastUpdate: new Date().toLocaleString(),
-                                    data: data
-                                });
-                            } catch (parseError) {
-                                console.error(`设备 ${config.name} JSON解析失败:`, parseError);
-                                console.log(`设备 ${config.name} 原始响应:`, responseText.substring(0, 500));
-                                throw parseError;
-                            }
-                        } else {
-                            const errorText = await response.text();
-                            console.error(`设备 ${config.name} 请求失败:`, errorText);
-                            throw new Error(`HTTP ${response.status}: ${errorText}`);
-                        }
-                    } catch (error) {
-                        console.error(`设备 ${config.name} 加载失败:`, error);
-                        this.devices.push({
-                            id: config.id,
-                            name: config.name,
-                            status: 'offline',
-                            loginUrl: config.login_url,
-                            itemCount: 0,
-                            lastUpdate: '连接失败',
-                            error: error.message
-                        });
-                    }
-                } else {
-                    this.devices.push({
-                        id: config.id,
-                        name: config.name,
-                        status: 'warning',
-                        loginUrl: config.login_url,
-                        itemCount: 0,
-                        lastUpdate: '未登录',
-                        needLogin: true
-                    });
-                }
-            }
-            
-            this.renderDevices();
-            
-        } catch (error) {
-            console.error('加载设备信息失败:', error);
-            this.showNotification('加载设备信息失败', 'error');
-        } finally {
-            this.hideLoading();
+        this.devices = [];
+
+        for (const config of this.configs) {
+            this.devices.push({
+                id: config.id,
+                name: config.name,
+                status: 'offline',
+                loginUrl: config.login_url,
+                itemCount: 0,
+                lastUpdate: '未刷新',
+            });
         }
+        this.renderDevices();    
     }
 
     renderDevices() {
@@ -713,11 +522,11 @@ class ICPlatform {
             <tr class="device-details-row" id="details-${device.id}">
                 <td colspan="7">
                     <div class="device-details-content">
-                        <h4><i class="fas fa-list"></i> 设备组件信息</h4>
+                        <h4><i class="fas fa-list"></i> 组件信息</h4>
                         <div id="details-content-${device.id}">
                             ${device.status === 'online' && device.data ? 
                                 this.renderDeviceDetails(device.data) : 
-                                '<p style="color: #7f8c8d; text-align: center; padding: 1rem;">请先登录获取设备信息</p>'}
+                                '<p style="color: #7f8c8d; text-align: center; padding: 1rem;">点击刷新更新组件信息</p>'}
                         </div>
                     </div>
                 </td>
@@ -836,25 +645,6 @@ class ICPlatform {
         }
     }
 
-    async sendWebShellCommand() {
-        // 此方法已弃用，WebShell现在在新窗口中运行
-        console.log('sendWebShellCommand method is deprecated');
-    }
-
-    closeWebShell() {
-        // 此方法已弃用，WebShell现在在新窗口中运行
-        console.log('closeWebShell method is deprecated');
-    }
-
-    async quickLogin(configId) {
-        const config = this.configs.find(c => c.id === configId);
-        if (!config) return;
-
-        this.currentConfig = config;
-        await this.login();
-        await this.loadDevices();
-    }
-
     jumpToLogin(configId) {
         const config = this.configs.find(c => c.id === configId);
         if (!config) {
@@ -897,7 +687,7 @@ class ICPlatform {
 
         try {
             this.showLoading();
-            const response = await fetch(`/csmp/${deviceId}`);
+            const response = await fetch(`/api/csmp/${deviceId}`);
             if (response.ok) {
                 const data = await response.json();
                 device.data = data;
