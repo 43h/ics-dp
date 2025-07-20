@@ -124,7 +124,7 @@ func main() {
 		api.DELETE("/configs/:id", deleteConfig)
 
 		// 数据抓取相关路由
-		api.GET("/csmp/:id", csmp)
+		api.GET("/csmp/:id", handleCsmp)
 
 		// WebShell WebSocket API
 		api.GET("/webshell/ws", handleWebShellWebSocket)
