@@ -99,7 +99,14 @@ func main() {
 
 	// 静态文件服务
 	r.Static("/static", "./static")
-	r.LoadHTMLGlob("templates/*")
+	r.StaticFile("/api/defaults.json", "./static/noVNC-1.6.0/defaults.json")
+	r.StaticFile("/api/mandatory.json", "./static/noVNC-1.6.0/mandatory.json")
+	r.StaticFile("/api/package.json", "./static/noVNC-1.6.0/package.json")
+	r.Static("/api/app", "./static/noVNC-1.6.0/app")
+	r.Static("/api/core", "./static/noVNC-1.6.0/core")
+	r.Static("/api/vendor", "./static/noVNC-1.6.0/vendor")
+
+	r.LoadHTMLGlob("html/*")
 
 	// 主页
 	r.GET("/", func(c *gin.Context) {
@@ -107,9 +114,6 @@ func main() {
 	})
 
 	// WebShell页面
-	r.GET("/webshell", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "webshell.html", nil)
-	})
 
 	// API 路由
 	api := r.Group("/api")
@@ -123,12 +127,19 @@ func main() {
 		// csmp实例信息路由
 		api.GET("/csmp/:id", handleCsmp)
 
+		api.GET("/webshell", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "webshell.html", nil)
+		})
+
 		// WebShell WebSocket API
 		api.GET("/webshell/ws", handleWebShellWebSocket)
 
 		// vnc地址
 		api.GET("/vnc/:id", getVNCAddress)
-
+		api.GET("/vnc", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "vnc.html", nil)
+		})
+		api.GET("/vnc/ws", handleVNCWebSocket)
 	}
 
 	fmt.Println("服务器运行在 http://localhost:8080")

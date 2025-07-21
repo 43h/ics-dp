@@ -79,7 +79,7 @@ func getVNCAddress(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "get VNC display failed"})
 		return
 	}
-	
+
 	vncAddress := config.SSHHost + strings.TrimSpace(string(output))
 	c.JSON(http.StatusOK, gin.H{
 		"address": vncAddress,

@@ -485,7 +485,7 @@ class ICPlatform {
                             </td>
                             <td>
                                 ${item.status === '运行中'? 
-                                    `<button class="btn btn-primary" onclick="app.jumpToVNC('${item.name}','${deviceId}')">
+                                    `<button class="btn btn-primary" onclick="app.openVNC('${item.name}',${deviceId})">
                                         <i class="fas fa-external-link-alt"></i> VNC
                                     </button>` : 
                                     '<span style="color: #7f8c8d;">-</span>'}
@@ -543,7 +543,7 @@ class ICPlatform {
         });
 
         // 在新窗口中打开WebShell
-        const webshellUrl = `/webshell?${params.toString()}`;
+        const webshellUrl = `/api/webshell?${params.toString()}`;
         const windowFeatures = 'width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         
         const newWindow = window.open(webshellUrl, `webshell-${deviceId}`, windowFeatures);
@@ -584,31 +584,39 @@ class ICPlatform {
         if (!loginUrl.startsWith('http://') && !loginUrl.startsWith('https://')) {
             loginUrl = 'http://' + loginUrl;
         }
-		// 只保留协议和主域名，不带任何路径
-		try {
-			const urlObj = new URL(loginUrl);
-			loginUrl = `${urlObj.protocol}//${urlObj.host}`;
-		} catch (e) {
-			// 如果URL解析失败，忽略处理
-		}
+        // 只保留协议和主域名，不带任何路径
+        try {
+            const urlObj = new URL(loginUrl);
+            loginUrl = `${urlObj.protocol}//${urlObj.host}`;
+        } catch (e) {
+            // 如果URL解析失败，忽略处理
+        }
         // 在新标签页打开登录页面
         window.open(loginUrl, '_blank');
         
         this.showNotification(`已在新标签页打开 ${config.name} 的登录页面`, 'info');
         this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
     }
-	
-	async jumpToVNC(itemName, deviceId) {
-		console.log(`跳转到VNC: ${itemName}, 设备ID: ${deviceId}`);
-        const config = this.configs.find(c => c.id === deviceId);
-        if (!config) {
-            this.showNotification('设备配置不存在', 'error');
+    
+    async openVNC(itemName, deviceId) {
+		console.log(`打开WebShell`,this.configs);
+        console.log(`打开VNC: ${itemName}, 设备ID: ${deviceId}`);
+		const device = this.devices.find(d => d.id === deviceId);
+		let address = '';
+        if (!device) {
+            this.showNotification('设备不存在', 'error');
             return;
         }
 
- 		try {
+        const config = this.configs.find(c => c.id === deviceId);
+        if (!config) {
+            this.showNotification('未找到设备配置', 'error');
+            return;
+        }
+
+        try {
             this.showLoading();
-			const response = await fetch(`/api/vnc/${deviceId}?itemName=${encodeURIComponent(itemName)}`);
+            const response = await fetch(`/api/vnc/${deviceId}?itemName=${encodeURIComponent(itemName)}`);
             if (response.ok) {
                 const data = await response.json();          
                 // 更新整个设备表格
@@ -619,34 +627,45 @@ class ICPlatform {
                 if (detailsRow && detailsRow.classList.contains('show')) {
                     this.toggleDeviceDetails(deviceId);
                 }
-              	this.addLogToInfoPanel(`VNC地址: ${data.address}`, 'success');
+				address = data.address;
+                this.addLogToInfoPanel(`VNC地址: ${data.address}`, 'success');
             } else {
-				const data = await response.json();
-				this.showNotification(data.error || 'VNC打开跳转失败', 'error');
-    			this.addLogToInfoPanel(`VNC获取失败: ${data.error || '未知错误'}`, 'error');
+                const data = await response.json();
+                this.showNotification(data.error || 'VNC打开跳转失败', 'error');
+                this.addLogToInfoPanel(`VNC获取失败: ${data.error || '未知错误'}`, 'error');
             }
         } catch (error) {
             console.error('VNC:', error);
             this.showNotification(`VNC打开失败`, 'error');
             this.addLogToInfoPanel(`VNC打开失败: ${error.message}`, 'error');
+			return
         } finally {
             this.hideLoading();
         }
-    
-		const vncUrl = `/vnc?${params.toString()}`;
 
-		// 在新标签页打开VNC页面
-		window.open(vncUrl, '_blank');
-
-		this.showNotification(`已在新标签页打开 ${config.name} 的VNC页面`, 'info');
-		this.addLogToInfoPanel(`跳转到 ${config.name} VNC页面: ${vncUrl}`, 'info');
-
-
-        // 在新标签页打开登录页面
-        window.open(loginUrl, '_blank');
+        // 在新窗口中打开WebShell
+        const VNCWebshellUrl = `/api/vnc?address=${address}`;
+        const windowFeatures = 'width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         
-        this.showNotification(`已在新标签页打开 ${config.name} 的登录页面`, 'info');
-        this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
+        const newWindow = window.open(VNCWebshellUrl, `webshell-${itemName}`, windowFeatures);
+        
+        if (newWindow) {
+            // 窗口居中显示
+            const screenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+            const screenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+            const width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
+            const height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
+
+            const left = ((width / 2) - (1000 / 2)) + screenLeft;
+            const top = ((height / 2) - (700 / 2)) + screenTop;
+            
+            newWindow.moveTo(left, top);
+            newWindow.focus();
+            
+            this.addLogToInfoPanel(`VNC窗口已打开: ${itemName}`, 'success');
+        } else {
+            this.showNotification('无法打开VNC窗口', 'error');
+        }
     }
 
     selectDeviceConfig(configId) {
@@ -681,8 +700,8 @@ class ICPlatform {
                 this.addLogToInfoPanel(`${device.name} 获取到 ${data.length} 个组件`, 'success');
             } else {
                 throw new Error('刷新失败');
-				const data = await response.json();
-				this.showNotification(`刷新 ${device.name} 失败: ${data.error}`, 'error');
+                const data = await response.json();
+                this.showNotification(`刷新 ${device.name} 失败: ${data.error}`, 'error');
             }
         } catch (error) {
             console.error('刷新设备失败:', error);
@@ -698,3 +717,5 @@ class ICPlatform {
 
 // 初始化应用
 const app = new ICPlatform();
+
+
