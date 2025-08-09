@@ -401,8 +401,8 @@ func performAutoLogin(ctx context.Context, username, password string) error {
 	return chromedp.SendKeys(`input[type="password"]`, "\r", chromedp.ByQuery).Do(ctx)
 }
 
-func parseTableHTMLToListItems(html string) ([]ListItem, error) {
-	var items []ListItem
+func parseTableHTMLToListItems(html string) ([]VmItem, error) {
+	var items []VmItem
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		return nil, err
@@ -431,7 +431,7 @@ func parseTableHTMLToListItems(html string) ([]ListItem, error) {
 			if tds.Length() < 13 {
 				return
 			}
-			item := ListItem{
+			item := VmItem{
 				Name:          strings.TrimSpace(tds.Eq(1).Find("a").Text()),
 				ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
 				IPAddress:     strings.TrimSpace(tds.Eq(9).Text()),
@@ -443,7 +443,7 @@ func parseTableHTMLToListItems(html string) ([]ListItem, error) {
 			if tds.Length() < 9 {
 				return
 			}
-			item := ListItem{
+			item := VmItem{
 				Name:          strings.TrimSpace(tds.Eq(1).Find("a").Text()),
 				ComponentType: strings.TrimSpace(tds.Eq(2).Text()),
 				IPAddress:     strings.TrimSpace(tds.Eq(7).Text()),
@@ -460,7 +460,7 @@ func handleCsmp(c *gin.Context) {
 	var loginURL, username, password string
 
 	id := c.Param("id")
-	for _, config := range configs {
+	for _, config := range devices {
 		if fmt.Sprintf("%d", config.ID) == id {
 			loginURL = config.LoginURL
 			username = config.Username

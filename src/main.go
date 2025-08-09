@@ -12,20 +12,20 @@ import (
 )
 
 // 配置结构
-type Config struct {
+type Device struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
 	LoginURL string `json:"login_url"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 	SSHHost  string `json:"ssh_host"`
+	SSHPort  string `json:"ssh_port"`
 	SSHUser  string `json:"ssh_user"`
 	SSHPass  string `json:"ssh_pass"`
-	SSHPort  string `json:"ssh_port"`
 }
 
 // 列表项结构
-type ListItem struct {
+type VmItem struct {
 	Name          string `json:"name"`
 	Status        string `json:"status"`
 	CanExecute    bool   `json:"can_execute"`
@@ -41,15 +41,15 @@ type ExecuteRequest struct {
 }
 
 // 全局变量
-var configs []Config
-var configFile = "configs.json"
+var devices []Device
+var configFile = "devices.json"
 
 // 加载配置文件
-func loadConfigs() error {
+func loadDeviceInfos() error {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		// 如果文件不存在，创建默认配置
-		configs = []Config{}
-		return saveConfigs()
+		devices = []Device{}
+		return saveDeviceInfos()
 	}
 
 	data, err := ioutil.ReadFile(configFile)
@@ -57,12 +57,12 @@ func loadConfigs() error {
 		return err
 	}
 
-	return json.Unmarshal(data, &configs)
+	return json.Unmarshal(data, &devices)
 }
 
 // 保存配置到文件
-func saveConfigs() error {
-	data, err := json.MarshalIndent(configs, "", "  ")
+func saveDeviceInfos() error {
+	data, err := json.MarshalIndent(devices, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func saveConfigs() error {
 // 获取下一个可用的ID
 func getNextConfigID() int {
 	maxID := 0
-	for _, config := range configs {
+	for _, config := range devices {
 		if config.ID > maxID {
 			maxID = config.ID
 		}
@@ -82,10 +82,10 @@ func getNextConfigID() int {
 
 func main() {
 	// 加载配置文件
-	if err := loadConfigs(); err != nil {
+	if err := loadDeviceInfos(); err != nil {
 		fmt.Printf("加载配置文件失败: %v\n", err)
 		// 继续运行，使用空配置
-		configs = []Config{}
+		devices = []Device{}
 	}
 
 	r := gin.Default()
@@ -113,16 +113,14 @@ func main() {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
-	// WebShell页面
-
 	// API 路由
 	api := r.Group("/api")
 	{
 		// 配置管理相关路由
-		api.GET("/configs", getConfigs)
-		api.POST("/configs", createConfig)
-		api.PUT("/configs/:id", updateConfig)
-		api.DELETE("/configs/:id", deleteConfig)
+		api.GET("/devices", getDevices)
+		api.POST("/devices", createDevice)
+		api.PUT("/devices/:id", updateDevice)
+		api.DELETE("/devices/:id", deleteConfig)
 
 		// csmp实例信息路由
 		api.GET("/csmp/:id", handleCsmp)
@@ -144,73 +142,4 @@ func main() {
 
 	fmt.Println("服务器运行在 http://localhost:8080")
 	_ = r.Run(":8080")
-}
-
-// 配置管理相关函数
-func getConfigs(c *gin.Context) {
-	c.JSON(http.StatusOK, configs)
-}
-
-func createConfig(c *gin.Context) {
-	var config Config
-	if err := c.ShouldBindJSON(&config); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	config.ID = getNextConfigID()
-	configs = append(configs, config)
-
-	// 保存到文件
-	if err := saveConfigs(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, config)
-}
-
-func updateConfig(c *gin.Context) {
-	id := c.Param("id")
-	var updatedConfig Config
-	if err := c.ShouldBindJSON(&updatedConfig); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	for i, config := range configs {
-		if fmt.Sprintf("%d", config.ID) == id {
-			updatedConfig.ID = config.ID
-			configs[i] = updatedConfig
-
-			// 保存到文件
-			if err := saveConfigs(); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
-				return
-			}
-
-			c.JSON(http.StatusOK, updatedConfig)
-			return
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "配置未找到"})
-}
-
-func deleteConfig(c *gin.Context) {
-	id := c.Param("id")
-	for i, config := range configs {
-		if fmt.Sprintf("%d", config.ID) == id {
-			configs = append(configs[:i], configs[i+1:]...)
-
-			// 保存到文件
-			if err := saveConfigs(); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存配置失败: " + err.Error()})
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{"message": "配置已删除"})
-			return
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{"error": "配置未找到"})
 }

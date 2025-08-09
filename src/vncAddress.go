@@ -21,8 +21,8 @@ func getVNCAddress(c *gin.Context) {
 	}
 
 	// 查找 config
-	var config *Config
-	for _, cfg := range configs {
+	var config *Device
+	for _, cfg := range devices {
 		if fmt.Sprintf("%v", cfg.ID) == deviceId {
 			config = &cfg
 			break
