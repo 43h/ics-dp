@@ -17,42 +17,72 @@
     <title>noVNC</title>
 
     <style>
-
-        body {
-            margin: 0;
-            background-color: dimgrey;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
+		 html,body{
+            height:100%;
+            margin:0;
         }
-        html {
-            height: 100%;
+        body{
+            background:#2b2b2b;
+            font:12px Helvetica,Arial,sans-serif;
         }
 
-        #top_bar {
-            background-color: #6e84a3;
-            color: white;
-            font: bold 12px Helvetica;
-            padding: 6px 5px 4px 5px;
-            border-bottom: 1px outset;
-        }
-        #status {
-            text-align: center;
-        }
-        #sendCtrlAltDelButton {
-            position: fixed;
-            top: 0px;
-            right: 0px;
-            border: 1px outset;
-            padding: 5px 5px 4px 5px;
-            cursor: pointer;
+        #top_bar{
+            background:#6e84a3;
+            color:#fff;
+            font:bold 12px Helvetica,Arial,sans-serif;
+            padding:6px 8px;
+            line-height:16px;
+            /* 统一高度，后面用 calc() 计算屏幕区域 */
+            height:30px;
+            box-sizing:border-box;
         }
 
-        #screen {
-            flex: 1; /* fill remaining space */
-            overflow: hidden;
+        /* 消除间隙的关键：用绝对定位占满 top_bar 与底部命令栏之间空间 */
+        #screen{
+            position:absolute;
+            top:30px;              /* 等于 #top_bar 高度 */
+            left:0;
+            right:0;
+            bottom:46px;           /* 预留给命令栏高度 (下面命令栏设置 46px) */
+            overflow:hidden;
+            background:#000;
         }
 
+        #command_bar{
+            position:absolute;
+            left:0;right:0;bottom:0;
+            height:46px;
+            display:flex;
+            gap:6px;
+            padding:6px 8px;
+            background:#222;
+            box-sizing:border-box;
+            border-top:1px solid #444;
+        }
+        #vncCommandInput{
+            flex:1;
+            padding:6px 8px;
+            border:1px solid #444;
+            background:#111;
+            color:#eee;
+        }
+        #vncSendBtn{
+            padding:6px 14px;
+            background:#3a6ea5;
+            color:#fff;
+            border:1px solid #25557f;
+            cursor:pointer;
+        }
+        #sendCtrlAltDelButton{
+            position:absolute;
+            top:4px;
+            right:8px;
+            padding:4px 8px;
+            background:#3a6ea5;
+            border:1px solid #25557f;
+            cursor:pointer;
+            font-size:12px;
+        }
     </style>
 
     <script type="module" crossorigin="anonymous">
