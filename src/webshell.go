@@ -20,7 +20,7 @@ type SSHSession struct {
 	StdinPipe     io.WriteCloser
 	StdoutPipe    io.Reader
 	StderrPipe    io.Reader
-	Config        *Device
+	Config        *CSMPDevice
 	CreatedAt     time.Time
 	LastUsed      time.Time
 	isActive      bool
@@ -62,8 +62,8 @@ func handleWebShellWebSocket(c *gin.Context) {
 	}
 
 	// 获取设备配置
-	var config *Device
-	for _, cfg := range devices {
+	var config *CSMPDevice
+	for _, cfg := range csmpDevices {
 		if fmt.Sprintf("%d", cfg.ID) == deviceIdStr {
 			config = &cfg
 			break
@@ -111,7 +111,7 @@ func handleWebShellWebSocket(c *gin.Context) {
 }
 
 // 创建SSH会话
-func createSSHSession(config *Device, wsConn *websocket.Conn) (*SSHSession, error) {
+func createSSHSession(config *CSMPDevice, wsConn *websocket.Conn) (*SSHSession, error) {
 	if config.SSHPort == "" {
 		config.SSHPort = "22"
 	}
@@ -323,8 +323,8 @@ func executeCommand(c *gin.Context) {
 		return
 	}
 
-	var config *Device
-	for _, cfg := range devices {
+	var config *CSMPDevice
+	for _, cfg := range csmpDevices {
 		if cfg.ID == req.ConfigID {
 			config = &cfg
 			break
@@ -351,7 +351,7 @@ func executeCommand(c *gin.Context) {
 	})
 }
 
-func executeSSHCommand(config *Device, command string) (string, error) {
+func executeSSHCommand(config *CSMPDevice, command string) (string, error) {
 	// 验证SSH配置
 	if config.SSHHost == "" {
 		return "", fmt.Errorf("SSH主机地址不能为空")
