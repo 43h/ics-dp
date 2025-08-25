@@ -179,6 +179,30 @@
         // Set parameters that can be changed on an active connection
         rfb.viewOnly = readQueryVariable('view_only', false);
         rfb.scaleViewport = readQueryVariable('scale', false);
+
+		// 命令输入发送
+        const cmdInput = document.getElementById('vncCommandInput');
+        const sendBtnCmd = document.getElementById('vncSendBtn');
+		function sendCommand() {
+			if (!rfb || rfb.viewOnly) return;
+			const text = cmdInput.value;
+			if (!text) return;
+			for (const ch of text) {
+				const keysym = ch.charCodeAt(0); // Convert character to Unicode/ASCII keysym
+				rfb.sendKey(keysym, null, true);  // Press key
+				rfb.sendKey(keysym, null, false); // Release key
+			}
+			rfb.sendKey(0xFF0D, "Enter", true);  // Press Enter (0xFF0D is keysym for Enter)
+			rfb.sendKey(0xFF0D, "Enter", false); // Release Enter
+			cmdInput.value = '';
+		}
+        cmdInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendCommand();
+            }
+        });
+        sendBtnCmd.addEventListener('click', sendCommand);
     </script>
 </head>
 
@@ -189,6 +213,15 @@
     </div>
     <div id="screen">
         <!-- This is where the remote screen will appear -->
+    </div>
+	<div id="command_bar" style="position:fixed;left:0;right:0;bottom:0;
+         background:#222;padding:6px;display:flex;gap:6px;font:12px sans-serif;">
+        <input id="vncCommandInput" type="text" placeholder="输入命令 回车发送"
+               style="flex:1;padding:6px 8px;border:1px solid #444;background:#111;color:#eee;">
+        <button id="vncSendBtn"
+                style="padding:6px 14px;background:#3a6ea5;color:#fff;border:1px solid #25557f;cursor:pointer;">
+            Send
+        </button>
     </div>
 </body>
 </html>

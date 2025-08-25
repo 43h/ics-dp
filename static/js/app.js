@@ -628,7 +628,7 @@ class ICPlatform {
 
         // 在新窗口中打开WebShell
 		const VNCWebshellUrl = `/api/vnc?address=${encodeURIComponent(address)}&pass=${encodeURIComponent(pass)}`;
-        const windowFeatures = 'width=1050,height=840,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+        const windowFeatures = 'width=1050,height=860,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         
         const newWindow = window.open(VNCWebshellUrl, `webshell-${itemName}`, windowFeatures);
         
