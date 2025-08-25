@@ -33,11 +33,6 @@ class ICPlatform {
             this.showConfigModal();
         });
 
-        // 刷新设备按钮
-        document.getElementById('refresh-all-devices-btn').addEventListener('click', () => {
-            this.loadDevices();
-        });
-
         // 清除日志按钮
         document.getElementById('clear-logs-btn').addEventListener('click', () => {
             this.clearInfoPanel();
@@ -110,7 +105,7 @@ class ICPlatform {
     async loadConfigs() {
         try {
             this.addLogToInfoPanel('正在加载配置文件...', 'info');
-            const response = await fetch('/api/configs');
+            const response = await fetch('/api/devices');
             this.configs = await response.json();
             this.renderConfigs();
             
@@ -246,15 +241,6 @@ class ICPlatform {
         }
     }
 
-    getStatusClass(status) {
-        switch (status) {
-            case '正常': return 'normal';
-            case '警告': return 'warning';
-            case '错误': return 'error';
-            default: return 'normal';
-        }
-    }
-
     showNotification(message, type = 'info') {
         // 创建通知元素
         const notification = document.createElement('div');
@@ -386,10 +372,11 @@ class ICPlatform {
             this.devices.push({
                 id: config.id,
                 name: config.name,
-                status: 'offline',
+                status: 'online',
                 loginUrl: config.login_url,
-                itemCount: 0,
-                lastUpdate: '未刷新',
+                itemCount: config.vm ? config.vm.length : 0,
+                lastUpdate: config.time_stamp,
+				data: config.vm || [],
             });
         }
         this.renderDevices();    
@@ -466,8 +453,6 @@ class ICPlatform {
                 <thead>
                     <tr>
                         <th>组件名称</th>
-                        <th>组件类型</th>
-                        <th>IP地址</th>
                         <th>状态</th>
                         <th>操作</th>
                     </tr>
@@ -476,15 +461,11 @@ class ICPlatform {
                     ${data.map(item => `
                         <tr>
                             <td><strong>${item.name}</strong></td>
-                            <td>${item.component_type || '未知类型'}</td>
-                            <td>${item.ip_address || '未知IP'}</td>
                             <td>
-                                <span class="item-status ${this.getStatusClass(item.status)}">
-                                    ${item.status}
-                                </span>
+                                ${item.status === 'running' ? '运行中' : '关闭'}
                             </td>
                             <td>
-                                ${item.status === '运行中'? 
+                                ${item.status === 'running'? 
                                     `<button class="btn btn-primary" onclick="app.openVNC('${item.name}',${deviceId})">
                                         <i class="fas fa-external-link-alt"></i> VNC
                                     </button>` : 
@@ -603,6 +584,7 @@ class ICPlatform {
         console.log(`打开VNC: ${itemName}, 设备ID: ${deviceId}`);
 		const device = this.devices.find(d => d.id === deviceId);
 		let address = '';
+		let pass = '';
         if (!device) {
             this.showNotification('设备不存在', 'error');
             return;
@@ -628,7 +610,8 @@ class ICPlatform {
                     this.toggleDeviceDetails(deviceId);
                 }
 				address = data.address;
-                this.addLogToInfoPanel(`VNC地址: ${data.address}`, 'success');
+				pass = data.pass;
+                this.addLogToInfoPanel(`VNC地址: ${data.address} , 密码: ${data.pass}`, 'success');
             } else {
                 const data = await response.json();
                 this.showNotification(data.error || 'VNC打开跳转失败', 'error');
@@ -644,7 +627,7 @@ class ICPlatform {
         }
 
         // 在新窗口中打开WebShell
-        const VNCWebshellUrl = `/api/vnc?address=${address}`;
+		const VNCWebshellUrl = `/api/vnc?address=${encodeURIComponent(address)}&pass=${encodeURIComponent(pass)}`;
         const windowFeatures = 'width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         
         const newWindow = window.open(VNCWebshellUrl, `webshell-${itemName}`, windowFeatures);
@@ -717,5 +700,3 @@ class ICPlatform {
 
 // 初始化应用
 const app = new ICPlatform();
-
-
