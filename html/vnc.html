@@ -125,6 +125,8 @@
 
 		const params = new URLSearchParams(window.location.search);
 		const address = params.get('address') || 'default_address';
+		const pass = params.get('pass');
+
         document.getElementById('sendCtrlAltDelButton')
             .onclick = sendCtrlAltDel;
 
@@ -132,7 +134,16 @@
         // By default, use the host and port of server that served this file
         const host = readQueryVariable('host', window.location.hostname);
         let port = readQueryVariable('port', window.location.port);
-        const password = readQueryVariable('password');
+		const password = pass || ''; // Allow empty password to trigger credentialsrequired event
+
+		// If the port is not specified, use the default VNC port
+		if (!port) {
+			port = 5900;
+		} else {
+			port = parseInt(port, 10);
+		}
+
+		// Read the path from the query string, default to 'api/vnc/ws'
 		const path = readQueryVariable('path', 'api/vnc/ws');
 
         // | | |         | | |
@@ -154,7 +165,7 @@
         }
         url += '/' + path;
 		url += '?address=' + address;
-		console.log('Connecting to ' + url);
+
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
                       { credentials: { password: password } });
