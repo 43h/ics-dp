@@ -21,8 +21,8 @@ func getVNCAddress(c *gin.Context) {
 	}
 
 	// 查找 config
-	var config *Device
-	for _, cfg := range devices {
+	var config *CSMPDevice
+	for _, cfg := range csmpDevices {
 		if fmt.Sprintf("%v", cfg.ID) == deviceId {
 			config = &cfg
 			break
@@ -83,5 +83,6 @@ func getVNCAddress(c *gin.Context) {
 	vncAddress := config.SSHHost + strings.TrimSpace(string(output))
 	c.JSON(http.StatusOK, gin.H{
 		"address": vncAddress,
+		"pass":    config.VNCPass,
 	})
 }
