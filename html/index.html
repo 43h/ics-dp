@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICS 开发平台</title>
+    <title>ICS-CSMP维护平台</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -12,7 +12,7 @@
         <!-- 顶部导航 -->
         <header class="header">
             <div class="header-content">
-                <h1><i class="fas fa-cogs"></i> ICS 开发平台 T0.1</h1>
+                <h1><i class="fas fa-cogs"></i> ICS-CSMP平台 T0.2</h1>
             </div>
         </header>
 
@@ -42,11 +42,6 @@
                     <div class="content-section">
                         <div class="section-header">
                             <h3><i class="fas fa-list"></i> 设备状态表</h3>
-                            <div class="section-actions">
-                                <button id="refresh-all-devices-btn" class="btn btn-primary">
-                                    <i class="fas fa-sync-alt"></i> 刷新全部
-                                </button>
-                            </div>
                         </div>
                         <div class="devices-table-container">
                             <table id="devices-table" class="devices-table">
@@ -58,7 +53,7 @@
                                         <th>最后更新</th>
                                         <th>操作</th>
                                         <th>WebShell</th>
-                                        <th>跳转</th>
+                                        <th>Web跳转</th>
                                     </tr>
                                 </thead>
                                 <tbody id="devices-table-body">
@@ -115,42 +110,47 @@
             </div>
             <form id="config-form" class="modal-body">
                 <div class="form-group">
-                    <label for="config-name">配置名称:</label>
-                    <input type="text" id="config-name" name="name" required>
+                    <label for="config-name">*CSMP名称:</label>
+                    <input type="text" id="config-name" name="name" required placeholder="CSMP-150">
                 </div>
                 <div class="form-group">
-                    <label for="config-login-url">登录页面URL:</label>
-                    <input type="text" id="config-login-url" name="login_url" required 
-                           placeholder="https://192.168.1.100/login 或 192.168.1.100/login">
+                    <label for="config-login-url">*登录页面URL:</label>
+                    <input type="text" id="config-login-url" name="login_url" required placeholder="https://192.168.1.100">
                     <small style="color: #7f8c8d; font-size: 0.8rem;">如果不包含协议，将自动添加 http://</small>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="config-username">用户名:</label>
-                        <input type="text" id="config-username" name="username" required>
+                        <input type="text" id="config-username" name="username">
                     </div>
                     <div class="form-group">
                         <label for="config-password">密码:</label>
-                        <input type="password" id="config-password" name="password" required>
+                        <input type="password" id="config-password" name="password">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="config-ssh-host">SSH主机:</label>
-                    <input type="text" id="config-ssh-host" name="ssh_host" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="config-ssh-host">*IP地址:</label>
+                        <input type="text" id="config-ssh-host" name="ssh_host">
+                    </div>
+                    <div class="form-group">
+                        <label for="config-ssh-port">SSH端口:</label>
+                        <input type="number" id="config-ssh-port" name="ssh_port" value="22">
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="config-ssh-user">SSH用户:</label>
-                        <input type="text" id="config-ssh-user" name="ssh_user" required>
+                        <input type="text" id="config-ssh-user" name="ssh_user">
                     </div>
                     <div class="form-group">
                         <label for="config-ssh-pass">SSH密码:</label>
-                        <input type="password" id="config-ssh-pass" name="ssh_pass" required>
+                        <input type="password" id="config-ssh-pass" name="ssh_pass">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="config-ssh-port">SSH端口:</label>
-                    <input type="number" id="config-ssh-port" name="ssh_port" value="22" required>
+                    <label for="config-vnc-pass">VNC密码:</label>
+                    <input type="password" id="config-vnc-pass" name="vnc_pass">
                 </div>
             </form>
             <div class="modal-footer">
