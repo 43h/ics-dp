@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,26 +12,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 配置结构
-type Device struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	LoginURL string `json:"login_url"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	SSHHost  string `json:"ssh_host"`
-	SSHPort  string `json:"ssh_port"`
-	SSHUser  string `json:"ssh_user"`
-	SSHPass  string `json:"ssh_pass"`
-}
-
-// 列表项结构
-type VmItem struct {
-	Name          string `json:"name"`
-	Status        string `json:"status"`
-	CanExecute    bool   `json:"can_execute"`
-	ComponentType string `json:"component_type"`
-	IPAddress     string `json:"ip_address"`
+// CSMP
+type CSMPDevice struct {
+	ID        int      `json:"id"`
+	Name      string   `json:"name"`
+	LoginURL  string   `json:"login_url"`
+	Username  string   `json:"username"`
+	Password  string   `json:"password"`
+	SSHHost   string   `json:"ssh_host"`
+	SSHPort   string   `json:"ssh_port"`
+	SSHUser   string   `json:"ssh_user"`
+	SSHPass   string   `json:"ssh_pass"`
+	VNCPass   string   `json:"vnc_pass"`
+	TimeStamp string   `json:"time_stamp"`
+	Count     int      `json:"count"`
+	VM        []VMItem `json:"vm"`
 }
 
 // 执行请求结构
@@ -41,14 +37,14 @@ type ExecuteRequest struct {
 }
 
 // 全局变量
-var devices []Device
+var csmpDevices []CSMPDevice
 var configFile = "devices.json"
 
 // 加载配置文件
 func loadDeviceInfos() error {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		// 如果文件不存在，创建默认配置
-		devices = []Device{}
+		csmpDevices = []CSMPDevice{}
 		return saveDeviceInfos()
 	}
 
@@ -57,12 +53,12 @@ func loadDeviceInfos() error {
 		return err
 	}
 
-	return json.Unmarshal(data, &devices)
+	return json.Unmarshal(data, &csmpDevices)
 }
 
 // 保存配置到文件
 func saveDeviceInfos() error {
-	data, err := json.MarshalIndent(devices, "", "  ")
+	data, err := json.MarshalIndent(csmpDevices, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -72,7 +68,7 @@ func saveDeviceInfos() error {
 // 获取下一个可用的ID
 func getNextConfigID() int {
 	maxID := 0
-	for _, config := range devices {
+	for _, config := range csmpDevices {
 		if config.ID > maxID {
 			maxID = config.ID
 		}
@@ -85,10 +81,13 @@ func main() {
 	if err := loadDeviceInfos(); err != nil {
 		fmt.Printf("加载配置文件失败: %v\n", err)
 		// 继续运行，使用空配置
-		devices = []Device{}
+		csmpDevices = []CSMPDevice{}
 	}
 
-	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode) // 可选：减少多余输出
+	r := gin.New()               // 不使用 Default()，避免默认 Logger
+	gin.DefaultWriter = io.Discard
+	gin.DefaultErrorWriter = io.Discard
 
 	// 配置CORS
 	config := cors.DefaultConfig()
@@ -116,14 +115,14 @@ func main() {
 	// API 路由
 	api := r.Group("/api")
 	{
-		// 配置管理相关路由
+		// CSMP设备管理
 		api.GET("/devices", getDevices)
 		api.POST("/devices", createDevice)
 		api.PUT("/devices/:id", updateDevice)
 		api.DELETE("/devices/:id", deleteConfig)
 
-		// csmp实例信息路由
-		api.GET("/csmp/:id", handleCsmp)
+		//刷新csmp下对应的虚拟机信息
+		api.GET("/csmp/:id", flushVM)
 
 		api.GET("/webshell", func(c *gin.Context) {
 			c.HTML(http.StatusOK, "webshell.html", nil)
