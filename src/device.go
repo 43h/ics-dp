@@ -9,18 +9,18 @@ import (
 
 // 配置管理相关函数
 func getDevices(c *gin.Context) {
-	c.JSON(http.StatusOK, devices)
+	c.JSON(http.StatusOK, csmpDevices)
 }
 
 func createDevice(c *gin.Context) {
-	var config Device
+	var config CSMPDevice
 	if err := c.ShouldBindJSON(&config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	config.ID = getNextConfigID()
-	devices = append(devices, config)
+	csmpDevices = append(csmpDevices, config)
 
 	// 保存到文件
 	if err := saveDeviceInfos(); err != nil {
@@ -33,16 +33,16 @@ func createDevice(c *gin.Context) {
 
 func updateDevice(c *gin.Context) {
 	id := c.Param("id")
-	var updatedConfig Device
+	var updatedConfig CSMPDevice
 	if err := c.ShouldBindJSON(&updatedConfig); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	for i, config := range devices {
+	for i, config := range csmpDevices {
 		if fmt.Sprintf("%d", config.ID) == id {
 			updatedConfig.ID = config.ID
-			devices[i] = updatedConfig
+			csmpDevices[i] = updatedConfig
 
 			// 保存到文件
 			if err := saveDeviceInfos(); err != nil {
@@ -59,9 +59,9 @@ func updateDevice(c *gin.Context) {
 
 func deleteConfig(c *gin.Context) {
 	id := c.Param("id")
-	for i, config := range devices {
+	for i, config := range csmpDevices {
 		if fmt.Sprintf("%d", config.ID) == id {
-			devices = append(devices[:i], devices[i+1:]...)
+			csmpDevices = append(csmpDevices[:i], csmpDevices[i+1:]...)
 
 			// 保存到文件
 			if err := saveDeviceInfos(); err != nil {
