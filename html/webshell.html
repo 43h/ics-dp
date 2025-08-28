@@ -1125,10 +1125,38 @@ WebShell 交互式终端帮助：
         // 粘贴文本
         async function pasteText() {
             try {
-                const text = await navigator.clipboard.readText();
-                if (websocket && websocket.readyState === WebSocket.OPEN) {
-                    websocket.send(text);
+                const raw = await navigator.clipboard.readText();
+                if (!raw) {
+                    document.getElementById('context-menu').style.display = 'none';
+                    return;
                 }
+
+                // 统一换行
+                const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const parts = text.split('\n');
+
+                // 辅助: 在光标处批量插入
+                function insertAtCursor(str) {
+                    if (!str) return;
+                    currentLine = currentLine.slice(0, cursorCol) + str + currentLine.slice(cursorCol);
+                    cursorCol += str.length;
+                }
+
+                for (let i = 0; i < parts.length; i++) {
+                    const segment = parts[i];
+                    insertAtCursor(segment);
+
+                    // 如果这一段后面原文本有换行（即不是最后一段） -> 模拟回车发送
+                    if (i < parts.length - 1) {
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(currentLine + '\r');
+                        }
+                        handleLineFeed(); // 清理当前行，等待服务器回显提示符
+                    }
+                }
+
+                // 更新当前行显示（最后一行如果没有换行，只本地显示，不发送）
+                updateCurrentLine();
             } catch (error) {
                 console.log('无法粘贴:', error);
             }
