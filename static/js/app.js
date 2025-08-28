@@ -243,18 +243,6 @@ class ICPlatform {
         }
     }
 
-    renderAbout() {
-		const container = document.getElementById('about-content');
-        const aboutContent = `
-            <h2>关于</h2>
-            <p>欢迎使用 ICS-设备管理平台！</p>
-            <p>版本：T0.3</p>
-            <p>作者：Your Name</p>
-        `;
-       container.innerHTML = aboutContent;
-       return;
-    }
-
     showNotification(message, type = 'info') {
         // 创建通知元素
         const notification = document.createElement('div');
@@ -376,8 +364,6 @@ class ICPlatform {
         } else if (viewName === 'configs') {
             // 只渲染配置，不重新加载和自动登录
             this.renderConfigs();
-        } else if (viewName === 'about') {
-            this.renderAbout();
         }
     }
 
