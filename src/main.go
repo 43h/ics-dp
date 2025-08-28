@@ -16,6 +16,7 @@ import (
 type CSMPDevice struct {
 	ID        int      `json:"id"`
 	Name      string   `json:"name"`
+	DevType   string   `json:"dev_type"`
 	LoginURL  string   `json:"login_url"`
 	Username  string   `json:"username"`
 	Password  string   `json:"password"`
