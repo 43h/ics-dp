@@ -140,6 +140,6 @@ func main() {
 		api.GET("/vnc/ws", handleVNCWebSocket)
 	}
 
-	fmt.Println("服务器运行在 http://localhost:8080")
-	_ = r.Run(":8080")
+	fmt.Println("服务器运行在 https://localhost:8080")
+	_ = r.RunTLS(":8080", "server.crt", "server.key")
 }
