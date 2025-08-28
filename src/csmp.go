@@ -36,6 +36,11 @@ func flushVM(c *gin.Context) {
 		return
 	}
 
+	if config.SSHHost == "" || config.SSHPort == "" || config.SSHUser == "" || config.SSHPass == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "SSH参数缺失"})
+		return
+	}
+
 	authMethods := []ssh.AuthMethod{ssh.Password(config.SSHPass)}
 	sshConfig := &ssh.ClientConfig{
 		User:            config.SSHUser,
@@ -58,7 +63,9 @@ func flushVM(c *gin.Context) {
 	defer session.Close()
 
 	// 统一批量获取: id|domain|state|novaName
-	remoteCmd := `
+	var remoteCmd string
+	if config.DevType == "CSMP" {
+		remoteCmd = `
 bash -c '
 for d in $(virsh list --all --name | grep .); do
   id=$(virsh domid "$d" 2>/dev/null || echo -)
@@ -67,6 +74,18 @@ for d in $(virsh list --all --name | grep .); do
   echo "$id|$state|$nova"
 done
 '`
+	} else if config.DevType == "XC" {
+		remoteCmd = `
+bash -c '
+for d in $(virsh list --all --name | grep .); do
+  id=$(virsh domid "$d" 2>/dev/null || echo -)
+  state=$(virsh domstate "$d" 2>/dev/null | tr -d "\r")
+  nova=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<name>\([^<]*\).*/\1/p" | head -n1)
+  echo "$id|$state|$nova"
+done
+'`
+	}
+
 	out, err := session.CombinedOutput(remoteCmd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取 VM 列表失败"})
@@ -84,6 +103,7 @@ done
 		if len(parts) < 3 {
 			continue
 		}
+
 		idStr, state, name := parts[0], parts[1], parts[2]
 
 		id := 0
@@ -92,6 +112,10 @@ done
 			fmt.Sscanf(idStr, "%d", &id)
 		} else {
 			id = 0
+		}
+
+		if state == "运行中" {
+			state = "running"
 		}
 
 		result = append(result, VMItem{
