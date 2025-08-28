@@ -1,3 +1,5 @@
 devices.json
 /.idea
 *.exe
+*.crt
+*.key
