@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICS-CSMP维护平台</title>
+    <title>ICS-设备管理平台</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -12,7 +12,7 @@
         <!-- 顶部导航 -->
         <header class="header">
             <div class="header-content">
-                <h1><i class="fas fa-cogs"></i> ICS-CSMP平台 T0.2</h1>
+                <h1><i class="fas fa-cogs"></i> ICS-设备管理平台 T0.3</h1>
             </div>
         </header>
 
@@ -32,6 +32,10 @@
                         <i class="fas fa-cog"></i>
                         <span>配置管理</span>
                     </li>
+					<li class="menu-item" data-menu="about">
+                        <i class="fas fas fa-question-circle"></i>
+                        <span>关于</span>
+                    </li>
                 </ul>
             </nav>
 
@@ -48,6 +52,7 @@
                                 <thead>
                                     <tr>
                                         <th>设备名称</th>
+                                        <th>类型</th>
                                         <th>状态</th>
                                         <th>实例数</th>
                                         <th>最后更新</th>
@@ -97,6 +102,21 @@
                         </div>
                     </div>
                 </div>
+
+				                <!-- 关于视图 -->
+                <div id="about-view" class="view-content">
+                    <div class="content-section full-height">
+                        <div class="section-header">
+                            <h3><i class="fas fa-info-circle"></i> 关于</h3>
+                        </div>
+                        <div class="about-content">
+                            <p>欢迎使用 ICS-设备管理平台！</p>
+                            <p>版本：T0.3</p>
+                            <p>作者：43h</p>
+							<p>更新时间: 2025-08-28</p>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -110,11 +130,15 @@
             </div>
             <form id="config-form" class="modal-body">
                 <div class="form-group">
-                    <label for="config-name">*CSMP名称:</label>
+                    <label for="config-name">*设备名称:</label>
                     <input type="text" id="config-name" name="name" required placeholder="CSMP-150">
                 </div>
                 <div class="form-group">
-                    <label for="config-login-url">*登录页面URL:</label>
+                    <label for="config-dev-type">*设备类型:</label>
+                    <input type="text" id="config-dev-type" name="dev-type" required placeholder="CSMP or XC">
+                </div>
+                <div class="form-group">
+                    <label for="config-login-url">登录页面URL:</label>
                     <input type="text" id="config-login-url" name="login_url" required placeholder="https://192.168.1.100">
                     <small style="color: #7f8c8d; font-size: 0.8rem;">如果不包含协议，将自动添加 http://</small>
                 </div>
