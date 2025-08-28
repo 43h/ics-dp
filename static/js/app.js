@@ -16,7 +16,6 @@ class ICPlatform {
         this.setupEventListeners();
         this.addLogToInfoPanel('系统正在初始化...', 'info');
         await this.loadConfigs();
-        await this.loadDevices();
         this.addLogToInfoPanel('系统初始化完成', 'success');
     }
 
@@ -95,7 +94,10 @@ class ICPlatform {
 
     fillForm(form, data) {
         Object.keys(data).forEach(key => {
-            const input = form.querySelector(`[name="${key}"]`);
+            let input = form.querySelector(`[name="${key}"]`);
+        	if (!input && key.includes('_')) {
+            	input = form.querySelector(`[name="${key.replace(/_/g, '-')}"`);
+        	}
             if (input) {
                 input.value = data[key];
             }
@@ -241,6 +243,18 @@ class ICPlatform {
         }
     }
 
+    renderAbout() {
+		const container = document.getElementById('about-content');
+        const aboutContent = `
+            <h2>关于</h2>
+            <p>欢迎使用 ICS-设备管理平台！</p>
+            <p>版本：T0.3</p>
+            <p>作者：Your Name</p>
+        `;
+       container.innerHTML = aboutContent;
+       return;
+    }
+
     showNotification(message, type = 'info') {
         // 创建通知元素
         const notification = document.createElement('div');
@@ -362,6 +376,8 @@ class ICPlatform {
         } else if (viewName === 'configs') {
             // 只渲染配置，不重新加载和自动登录
             this.renderConfigs();
+        } else if (viewName === 'about') {
+            this.renderAbout();
         }
     }
 
@@ -372,6 +388,7 @@ class ICPlatform {
             this.devices.push({
                 id: config.id,
                 name: config.name,
+				type: config.dev_type,
                 status: 'online',
                 loginUrl: config.login_url,
                 itemCount: config.vm ? config.vm.length : 0,
@@ -381,6 +398,17 @@ class ICPlatform {
         }
         this.renderDevices();    
     }
+
+    getDeviceTypeLabel(type) {
+		switch(type) {
+			case 'csmp': return 'CSMP';
+			case 'CSMP': return 'CSMP';
+			case 'xc': return '信创';
+			case 'XC': return '信创';
+			case '': return '未知';
+			default: return type;
+		}
+	}
 
     renderDevices() {
         const container = document.getElementById('devices-table-body');
@@ -402,6 +430,11 @@ class ICPlatform {
                         </div>
                     </div>
                 </td>
+				<td>
+				    <span class="device-status-badge ${device.type}">
+                        ${this.getDeviceTypeLabel(device.type)}
+                    </span>
+				</td>
                 <td>
                     <span class="device-status-badge ${device.status}">
                         ${device.status === 'online' ? '在线' : 
