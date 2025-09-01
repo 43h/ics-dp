@@ -3,3 +3,5 @@ devices.json
 *.exe
 *.crt
 *.key
+*.pem
+ics-dp-linux
