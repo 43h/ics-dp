@@ -15,10 +15,11 @@ type VMIP struct {
 	MAC string `json:"mac"`
 }
 type VMItem struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	IP     []VMIP `json:"ips"`
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	CreateTime string `json:"create_time"`
+	IP         []VMIP `json:"ips"`
 }
 
 func flushVM(c *gin.Context) {
@@ -76,8 +77,9 @@ for d in $(virsh list --all --name | grep .); do
   id=$(virsh domid "$d" 2>/dev/null || echo -)
   state=$(virsh domstate "$d" 2>/dev/null | tr -d "\r")
   nova=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<nova:name>\([^<]*\).*/\1/p" | head -n1)
+  ctime=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<nova:creationTime>\([^<]*\).*/\1/p" | head -n1)
   macs=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*mac address=\(.*\)[/].*/\1/p" | tr "\n" "," | sed "s/,$//")
-  echo "$id|$state|$nova|$macs"
+  echo "$id|$state|$nova|$ctime|$macs"
 done
 '`
 	} else if config.DevType == "XC" {
@@ -88,7 +90,7 @@ for d in $(virsh list --all --name | grep .); do
   state=$(virsh domstate "$d" 2>/dev/null | tr -d "\r")
   nova=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<name>\([^<]*\).*/\1/p" | head -n1)
   macs=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*mac address=\(.*\)[/].*/\1/p" | tr "\n" "," | sed "s/,$//")
-  echo "$id|$state|$nova|$macs"
+  echo "$id|$state|$nova|-|$macs"
 done
 '`
 	}
@@ -106,12 +108,12 @@ done
 		if line == "" || !strings.Contains(line, "|") {
 			continue
 		}
-		parts := strings.SplitN(line, "|", 4)
-		if len(parts) < 4 {
+		parts := strings.SplitN(line, "|", 5)
+		if len(parts) < 5 {
 			continue
 		}
 
-		idStr, state, name, macs := parts[0], parts[1], parts[2], parts[3]
+		idStr, state, name, createTime, macs := parts[0], parts[1], parts[2], parts[3], parts[4]
 
 		id := 0
 		if idStr != "-" {
@@ -142,10 +144,11 @@ done
 		}
 
 		result = append(result, VMItem{
-			ID:     id,
-			Name:   name,
-			Status: state,
-			IP:     ipList,
+			ID:         id,
+			Name:       name,
+			Status:     state,
+			CreateTime: createTime,
+			IP:         ipList,
 		})
 	}
 

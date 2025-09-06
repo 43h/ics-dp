@@ -427,6 +427,7 @@ class ICPlatform {
                     <tr>
                         <th>组件名称</th>
                         <th>状态</th>
+						<th>创建时间</th>
 						<th>IP</th>
                         <th>操作</th>
                     </tr>
@@ -438,6 +439,7 @@ class ICPlatform {
                             <td>
                                 ${item.status === 'running' ? '运行中' : '关闭'}
                             </td>
+							<td>${item.create_time || '-'}</td>
 							<td>
 							  ${(Array.isArray(item.ips) && item.ips.length > 0)
     ? item.ips.map(ipObj => ipObj.ip).filter(ip => ip).join(', ')
