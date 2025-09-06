@@ -30,11 +30,6 @@ class ICPlatform {
             this.showConfigModal();
         });
 
-        // 清除日志按钮
-        document.getElementById('clear-logs-btn').addEventListener('click', () => {
-            this.clearInfoPanel();
-        });
-
         // 配置表单提交
         document.getElementById('config-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -322,16 +317,6 @@ class ICPlatform {
         
         // 滚动到底部
         infoPanel.scrollTop = infoPanel.scrollHeight;
-    }
-
-    clearInfoPanel() {
-        const infoPanel = document.getElementById('info-panel');
-        infoPanel.innerHTML = `
-            <div class="info-welcome">
-                <i class="fas fa-info-circle"></i>
-                <p>这里将显示设备操作、命令执行结果和错误信息</p>
-            </div>
-        `;
     }
 
     switchView(viewName) {
