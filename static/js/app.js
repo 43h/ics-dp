@@ -14,9 +14,7 @@ class ICPlatform {
 
     async init() {
         this.setupEventListeners();
-        this.addLogToInfoPanel('系统正在初始化...', 'info');
         await this.loadConfigs();
-        this.addLogToInfoPanel('系统初始化完成', 'success');
     }
 
     setupEventListeners() {
@@ -106,20 +104,15 @@ class ICPlatform {
 
     async loadConfigs() {
         try {
-            this.addLogToInfoPanel('正在加载配置文件...', 'info');
             const response = await fetch('/api/devices');
             this.configs = await response.json();
             this.renderConfigs();
             
-            if (this.configs.length === 0) {
-                this.addLogToInfoPanel('暂无配置，请点击"配置管理"添加配置', 'warning');
-            } else {
-                this.addLogToInfoPanel(`已加载 ${this.configs.length} 个配置`, 'info');
+            if (this.configs.length > 0) {
                 this.loadDevices();
             }
         } catch (error) {
             this.showNotification('加载配置失败', 'error');
-            this.addLogToInfoPanel('加载配置失败: ' + error.message, 'error');
         }
     }
 
@@ -147,7 +140,6 @@ class ICPlatform {
         if (this.currentConfig) {
             // 在新的UI中，我们只需要更新状态，不需要更新UI元素
             this.renderConfigs(); // 重新渲染以更新选中状态
-            this.addLogToInfoPanel(`已选择配置: ${this.currentConfig.name}`, 'info');
         }
     }
 
@@ -173,7 +165,6 @@ class ICPlatform {
                 await this.loadConfigs();
                 if (this.currentConfig?.id === configId) {
                     this.currentConfig = null;
-                    this.addLogToInfoPanel('当前配置已删除', 'warning');
                 }
                 this.showNotification('配置删除成功', 'success');
             } else {
@@ -560,10 +551,8 @@ class ICPlatform {
             
             newWindow.moveTo(left, top);
             newWindow.focus();
-            
-            this.addLogToInfoPanel(`WebShell窗口已打开: ${device.name}`, 'success');
         } else {
-            this.showNotification('无法打开WebShell窗口，请检查浏览器弹窗设置', 'error');
+            this.showNotification('无法打开WebShell窗口,请检查浏览器弹窗设置', 'error');
         }
     }
 
@@ -595,7 +584,6 @@ class ICPlatform {
         window.open(loginUrl, '_blank');
         
         this.showNotification(`已在新标签页打开 ${config.name} 的登录页面`, 'info');
-        this.addLogToInfoPanel(`跳转到 ${config.name} 登录页面: ${loginUrl}`, 'info');
     }
     
     async openVNC(itemName, deviceId) {
@@ -630,16 +618,13 @@ class ICPlatform {
                 }
 				address = data.address;
 				pass = data.pass;
-                this.addLogToInfoPanel(`VNC地址: ${data.address} , 密码: ${data.pass}`, 'success');
             } else {
                 const data = await response.json();
                 this.showNotification(data.error || 'VNC打开跳转失败', 'error');
-                this.addLogToInfoPanel(`VNC获取失败: ${data.error || '未知错误'}`, 'error');
             }
         } catch (error) {
             console.error('VNC:', error);
             this.showNotification(`VNC打开失败`, 'error');
-            this.addLogToInfoPanel(`VNC打开失败: ${error.message}`, 'error');
 			return
         } finally {
             this.hideLoading();
@@ -663,8 +648,6 @@ class ICPlatform {
             
             newWindow.moveTo(left, top);
             newWindow.focus();
-            
-            this.addLogToInfoPanel(`VNC窗口已打开: ${itemName}`, 'success');
         } else {
             this.showNotification('无法打开VNC窗口', 'error');
         }
@@ -699,7 +682,6 @@ class ICPlatform {
                 }
                 
                 this.showNotification(`${device.name} 数据刷新成功`, 'success');
-                this.addLogToInfoPanel(`${device.name} 获取到 ${data.length} 个组件`, 'success');
             } else {
                 throw new Error('刷新失败');
                 const data = await response.json();
@@ -708,7 +690,6 @@ class ICPlatform {
         } catch (error) {
             console.error('刷新设备失败:', error);
             this.showNotification(`刷新 ${device.name} 失败`, 'error');
-            this.addLogToInfoPanel(`刷新 ${device.name} 失败: ${error.message}`, 'error');
         } finally {
             this.hideLoading();
         }
