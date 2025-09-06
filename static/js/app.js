@@ -427,16 +427,22 @@ class ICPlatform {
                     <tr>
                         <th>组件名称</th>
                         <th>状态</th>
+						<th>IP</th>
                         <th>操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data.map(item => `
                         <tr>
-                            <td><strong>${item.name}</strong></td>
+                            <td><b>${item.name}</b></td>
                             <td>
                                 ${item.status === 'running' ? '运行中' : '关闭'}
                             </td>
+							<td>
+							  ${(Array.isArray(item.ips) && item.ips.length > 0)
+    ? item.ips.map(ipObj => ipObj.ip).filter(ip => ip).join(', ')
+    : ''}
+							</td>
                             <td>
                                 ${item.status === 'running'? 
                                     `<button class="btn btn-primary" onclick="app.openVNC('${item.name}',${deviceId})">

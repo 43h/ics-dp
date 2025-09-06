@@ -10,10 +10,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type VMIP struct {
+	IP  string `json:"ip"`
+	MAC string `json:"mac"`
+}
 type VMItem struct {
 	ID     int    `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
+	IP     []VMIP `json:"ips"`
 }
 
 func flushVM(c *gin.Context) {
@@ -71,7 +76,8 @@ for d in $(virsh list --all --name | grep .); do
   id=$(virsh domid "$d" 2>/dev/null || echo -)
   state=$(virsh domstate "$d" 2>/dev/null | tr -d "\r")
   nova=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<nova:name>\([^<]*\).*/\1/p" | head -n1)
-  echo "$id|$state|$nova"
+  macs=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*mac address=\(.*\)[/].*/\1/p" | tr "\n" "," | sed "s/,$//")
+  echo "$id|$state|$nova|$macs"
 done
 '`
 	} else if config.DevType == "XC" {
@@ -81,7 +87,8 @@ for d in $(virsh list --all --name | grep .); do
   id=$(virsh domid "$d" 2>/dev/null || echo -)
   state=$(virsh domstate "$d" 2>/dev/null | tr -d "\r")
   nova=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*<name>\([^<]*\).*/\1/p" | head -n1)
-  echo "$id|$state|$nova"
+  macs=$(virsh dumpxml "$d" 2>/dev/null | sed -n "s/.*mac address=\(.*\)[/].*/\1/p" | tr "\n" "," | sed "s/,$//")
+  echo "$id|$state|$nova|$macs"
 done
 '`
 	}
@@ -99,12 +106,12 @@ done
 		if line == "" || !strings.Contains(line, "|") {
 			continue
 		}
-		parts := strings.SplitN(line, "|", 3)
-		if len(parts) < 3 {
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) < 4 {
 			continue
 		}
 
-		idStr, state, name := parts[0], parts[1], parts[2]
+		idStr, state, name, macs := parts[0], parts[1], parts[2], parts[3]
 
 		id := 0
 		if idStr != "-" {
@@ -118,11 +125,80 @@ done
 			state = "running"
 		}
 
+		var ipList []VMIP
+		macArr := strings.Split(macs, ",")
+		for _, mac := range macArr {
+			mac = strings.TrimSpace(mac)
+			if mac == "" {
+				continue
+			}
+			mac = strings.ReplaceAll(mac, "'", "")
+			mac = strings.ReplaceAll(mac, "\"", "")
+			mac = strings.ToLower(mac)
+			ipList = append(ipList, VMIP{
+				MAC: mac,
+				IP:  "",
+			})
+		}
+
 		result = append(result, VMItem{
 			ID:     id,
 			Name:   name,
 			Status: state,
+			IP:     ipList,
 		})
+	}
+
+	session2, err := client.NewSession()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "SSH session failed"})
+		return
+	}
+	defer session2.Close()
+	arpCmd := `bash -c '
+arp -an | awk "{print \$2 \"|\" \$4}"
+'`
+	out, err = session2.CombinedOutput(arpCmd)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取 VM 列表失败"})
+		return
+	}
+
+	var ipAll []VMIP
+	lines = strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.Contains(line, "|") {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		ip := parts[0]
+		mac := parts[1]
+		if mac == "<incomplete>" {
+			continue
+		}
+		ip = strings.ReplaceAll(ip, "(", "")
+		ip = strings.ReplaceAll(ip, ")", "")
+		mac = strings.ToLower(mac)
+		ipAll = append(ipAll, VMIP{
+			MAC: mac,
+			IP:  ip,
+		})
+	}
+
+	for i := range result {
+		for j := range result[i].IP {
+			mac := result[i].IP[j].MAC
+			for _, ipItem := range ipAll {
+				if ipItem.MAC == mac {
+					result[i].IP[j].IP = ipItem.IP
+					break
+				}
+			}
+		}
 	}
 
 	go func() { //刷新后更新数据
