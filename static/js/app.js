@@ -297,28 +297,6 @@ class ICPlatform {
         }
     }
 
-    addLogToInfoPanel(message, type = 'info') {
-        const infoPanel = document.getElementById('info-panel');
-        
-        // 如果还是欢迎消息，先清空
-        const welcomeMsg = infoPanel.querySelector('.info-welcome');
-        if (welcomeMsg) {
-            welcomeMsg.remove();
-        }
-
-        const logElement = document.createElement('div');
-        logElement.className = `info-log ${type}`;
-        logElement.innerHTML = `
-            <span class="info-log-time">${new Date().toLocaleTimeString()}</span>
-            <span class="info-log-content">${message}</span>
-        `;
-
-        infoPanel.appendChild(logElement);
-        
-        // 滚动到底部
-        infoPanel.scrollTop = infoPanel.scrollHeight;
-    }
-
     switchView(viewName) {
         // 更新菜单状态
         document.querySelectorAll('.menu-item').forEach(item => {

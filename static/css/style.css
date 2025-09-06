@@ -307,6 +307,7 @@ body {
 }
 
 .device-details-content {
+	width: 100%;
     padding: 1.5rem;
     border-left: 4px solid #667eea;
 }
@@ -393,77 +394,6 @@ body {
     font-size: 0.8rem;
     border-radius: 4px;
     white-space: nowrap;
-}
-
-/* 信息面板样式 */
-.info-panel {
-	flex-grow: 0;
-	flex-shrink: 0;
-	min-height: 0;
-	/* 限制信息面板高度，确保不会超出容器 */
-	max-height: 200px;
-	padding: 0.8rem;
-	background: #f8f9fa;
-	overflow-y: auto;
-	border-top: 2px solid #e1e8ed;
-	position: relative;
-	margin-top: auto;
-}
-
-.info-welcome {
-    text-align: center;
-    color: #7f8c8d;
-    padding: 1rem;
-}
-
-.info-welcome i {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    color: #667eea;
-}
-
-.info-log {
-    margin-bottom: 0.5rem;
-    padding: 0.6rem;
-    border-radius: 6px;
-    border-left: 4px solid #667eea;
-    background: white;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-}
-
-.info-log.success {
-    border-left-color: #28a745;
-    background: #d4edda;
-}
-
-.info-log.error {
-    border-left-color: #dc3545;
-    background: #f8d7da;
-}
-
-.info-log.warning {
-    border-left-color: #ffc107;
-    background: #fff3cd;
-}
-
-.info-log-time {
-    font-size: 0.7rem;
-    color: #6c757d;
-    margin-right: 0.5rem;
-    display: inline-block;
-    min-width: 60px;
-    flex-shrink: 0;
-}
-
-.info-log-content {
-    color: #2c3e50;
-    line-height: 1.3;
-    font-size: 0.8rem;
-    display: inline-block;
-    flex: 1;
 }
 
 /* 配置列表样式 */
